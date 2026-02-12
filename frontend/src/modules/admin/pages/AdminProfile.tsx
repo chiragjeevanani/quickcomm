@@ -77,9 +77,9 @@ export default function AdminProfile() {
     };
 
     const handleSave = async () => {
-        if (!formData.firstName.trim() || !formData.lastName.trim()) return showToast('Full name required', 'warning');
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return showToast('Valid email required', 'warning');
-        if (!/^[0-9]{10}$/.test(formData.mobile)) return showToast('10-digit mobile required', 'warning');
+        if (!formData.firstName.trim() || !formData.lastName.trim()) return showToast('Full name required', 'info');
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return showToast('Valid email required', 'info');
+        if (!/^[0-9]{10}$/.test(formData.mobile)) return showToast('10-digit mobile required', 'info');
 
         try {
             setSaving(true);

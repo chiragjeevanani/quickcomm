@@ -25,7 +25,6 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 // Icons
 import {
@@ -37,7 +36,8 @@ import {
     Star,
     AlertCircle,
     Info,
-    RefreshCw
+    RefreshCw,
+    Search
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
@@ -297,12 +297,12 @@ export default function AdminBestsellerCards() {
                 </Button>
             </PageHeader>
 
-            <Alert className="bg-primary/5 border-primary/20 text-primary">
+            <div className="bg-primary/5 border border-primary/20 text-primary p-4 rounded-lg flex items-center gap-3">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-xs font-medium">
+                <p className="text-xs font-medium">
                     Active cards: <span className="font-bold">{activeCardsCount}</span> / {MAX_ACTIVE_CARDS} (Maximum allowed)
-                </AlertDescription>
-            </Alert>
+                </p>
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left Sidebar: Add/Edit Form */}

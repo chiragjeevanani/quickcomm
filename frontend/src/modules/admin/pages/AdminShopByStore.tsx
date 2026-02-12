@@ -207,7 +207,7 @@ export default function AdminShopByStore() {
 
     const validation = validateImageFile(file);
     if (!validation.valid) {
-      showToast(validation.error || "Invalid image file", "warning");
+      showToast(validation.error || "Invalid image file", "info");
       return;
     }
 
@@ -230,7 +230,7 @@ export default function AdminShopByStore() {
 
   const handleAddStore = async () => {
     if (!storeName.trim()) {
-      showToast("Please enter a store name", "warning");
+      showToast("Please enter a store name", "info");
       return;
     }
 
@@ -242,7 +242,7 @@ export default function AdminShopByStore() {
         const imageResult = await uploadImage(storeImageFile, "dhakadsnazzy/stores");
         imageUrl = imageResult.secureUrl;
       } else if (editingId && !storeImagePreview) {
-        showToast("Store image is required", "warning");
+        showToast("Store image is required", "info");
         setUploading(false);
         return;
       }
@@ -267,7 +267,7 @@ export default function AdminShopByStore() {
         }
       } else {
         if (!imageUrl) {
-          showToast("Store image is required", "warning");
+          showToast("Store image is required", "info");
           setUploading(false);
           return;
         }
@@ -424,6 +424,11 @@ export default function AdminShopByStore() {
       )
     }
   ];
+
+  const displayedStores = sortedStores.slice(
+    (currentPage - 1) * parseInt(rowsPerPage),
+    currentPage * parseInt(rowsPerPage)
+  );
 
   return (
     <div className="space-y-6">

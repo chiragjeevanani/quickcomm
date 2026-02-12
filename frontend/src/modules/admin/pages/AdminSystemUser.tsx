@@ -108,14 +108,14 @@ export default function AdminSystemUser() {
   };
 
   const handleAddSystemUser = async () => {
-    if (!formData.role) return showToast('Please select a role', 'warning');
-    if (!formData.firstName.trim()) return showToast('First name required', 'warning');
-    if (!formData.lastName.trim()) return showToast('Last name required', 'warning');
-    if (!/^[0-9]{10}$/.test(formData.mobile)) return showToast('10-digit mobile required', 'warning');
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return showToast('Valid email required', 'warning');
-    if (editingId === null && !formData.password.trim()) return showToast('Password required', 'warning');
-    if (formData.password.trim() && formData.password.length < 6) return showToast('Password min 6 chars', 'warning');
-    if (formData.password !== formData.confirmPassword) return showToast('Passwords do not match', 'warning');
+    if (!formData.role) return showToast('Please select a role', 'info');
+    if (!formData.firstName.trim()) return showToast('First name required', 'info');
+    if (!formData.lastName.trim()) return showToast('Last name required', 'info');
+    if (!/^[0-9]{10}$/.test(formData.mobile)) return showToast('10-digit mobile required', 'info');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return showToast('Valid email required', 'info');
+    if (editingId === null && !formData.password.trim()) return showToast('Password required', 'info');
+    if (formData.password.trim() && formData.password.length < 6) return showToast('Password min 6 chars', 'info');
+    if (formData.password !== formData.confirmPassword) return showToast('Passwords do not match', 'info');
 
     setLoading(true);
     try {

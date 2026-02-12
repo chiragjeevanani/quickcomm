@@ -136,18 +136,18 @@ export default function AdminPromoStrip() {
     e.preventDefault();
 
     if (!headerCategorySlug || !heading || !saleText || !startDate || !endDate) {
-      showToast("Please fill in all required fields", "warning");
+      showToast("Please fill in all required fields", "info");
       return;
     }
 
     if (new Date(endDate) <= new Date(startDate)) {
-      showToast("End date must be after start date", "warning");
+      showToast("End date must be after start date", "info");
       return;
     }
 
     // Validate at least 4 featured products for carousel
     if (featuredProducts.length < 4) {
-      showToast("Please select at least 4 products for the CRAZY DEALS carousel section", "warning");
+      showToast("Please select at least 4 products for the CRAZY DEALS carousel section", "info");
       return;
     }
 

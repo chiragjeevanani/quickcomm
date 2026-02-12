@@ -34,6 +34,13 @@ import {
     Zap,
     ShieldCheck
 } from "lucide-react";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 export default function AdminLowestPrices() {
     const { showToast } = useToast();
@@ -183,7 +190,7 @@ export default function AdminLowestPrices() {
                 return (
                     <div className="flex items-center gap-3">
                         <div className="h-10 w-10 rounded-xl bg-muted border border-border flex items-center justify-center overflow-hidden">
-                            {product?.image ? <img src={product.image} className="h-full w-full object-cover" /> : <Package className="h-5 w-5 opacity-20" />}
+                            {product?.mainImage ? <img src={product.mainImage} className="h-full w-full object-cover" /> : <Package className="h-5 w-5 opacity-20" />}
                         </div>
                         <div className="flex flex-col max-w-[200px]">
                             <span className="font-bold text-xs truncate text-foreground leading-tight">{product?.productName || "Protocol Error"}</span>
@@ -213,8 +220,8 @@ export default function AdminLowestPrices() {
             accessorKey: "isActive",
             cell: (lp: LowestPricesProduct) => (
                 <Badge variant="outline" className={`text-[10px] font-black uppercase tracking-widest border-2 ${lp.isActive
-                        ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
-                        : 'bg-muted text-muted-foreground border-border'
+                    ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                    : 'bg-muted text-muted-foreground border-border'
                     }`}>
                     {lp.isActive ? <CheckCircle2 className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
                     {lp.isActive ? 'Active' : 'Offline'}
@@ -381,7 +388,7 @@ export default function AdminLowestPrices() {
                                 <div className="flex items-center gap-3">
                                     <Select value={rowsPerPage} onValueChange={setRowsPerPage}>
                                         <SelectTrigger className="w-32 h-10 bg-muted/20 border-border text-[10px] font-black uppercase tracking-widest">
-                                            <SelectValue />
+                                            <SelectValue placeholder="10 Entries" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="10">10 Entries</SelectItem>

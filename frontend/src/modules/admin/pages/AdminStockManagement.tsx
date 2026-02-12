@@ -40,6 +40,7 @@ import {
   Package
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 
 interface ProductVariationRow {
   id: string;
