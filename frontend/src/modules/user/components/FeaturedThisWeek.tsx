@@ -1,6 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, useRef, memo } from 'react';
+import { Link } from 'react-router-dom';
 import { getProducts } from '../../../services/api/customerProductService';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Sparkles, ChevronRight, Zap, Cake, ShoppingBag } from 'lucide-react';
+import { cn } from "@/lib/utils";
 
 interface FeaturedCard {
   id: string;
@@ -8,41 +11,46 @@ interface FeaturedCard {
   title?: string;
   categoryId?: string;
   bgColor: string;
-  borderColor: string;
+  textColor: string;
+  icon: any;
 }
 
 const featuredCards: FeaturedCard[] = [
   {
     id: 'newly-launched',
     type: 'newly-launched',
-    bgColor: 'bg-yellow-50',
-    borderColor: 'border-yellow-200',
+    bgColor: 'bg-amber-50',
+    textColor: 'text-orange-900',
+    icon: Sparkles,
   },
   {
     id: 'price-drop',
     type: 'price-drop',
-    title: 'PRICE DROP',
-    bgColor: 'bg-blue-900',
-    borderColor: 'border-blue-500',
+    title: 'OFFERS',
+    bgColor: 'bg-blue-600',
+    textColor: 'text-white',
+    icon: Zap,
   },
   {
     id: 'plum-cakes',
     type: 'plum-cakes',
-    title: 'Plum Cakes',
-    bgColor: 'bg-red-900',
-    borderColor: 'border-white',
+    title: 'Cakes',
+    bgColor: 'bg-rose-600',
+    textColor: 'text-white',
+    icon: Cake,
   },
   {
     id: 'fresh-arrivals',
     type: 'featured',
-    title: 'Fresh Arrivals',
-    categoryId: 'fruits-veg',
-    bgColor: 'bg-green-600',
-    borderColor: 'border-green-400',
+    title: 'Bags',
+    categoryId: 'fruits-veg', // Using fruit-veg placeholder as before
+    bgColor: 'bg-emerald-600',
+    textColor: 'text-white',
+    icon: ShoppingBag,
   },
 ];
 
-export default function FeaturedThisWeek() {
+const FeaturedThisWeek = memo(() => {
   const [currentProductIndex, setCurrentProductIndex] = useState(0);
   const [newlyLaunchedProducts, setNewlyLaunchedProducts] = useState<any[]>([]);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -55,14 +63,10 @@ export default function FeaturedThisWeek() {
           setNewlyLaunchedProducts(res.data);
         }
       } catch (e) {
-        console.error(e);
         const fruitList = [
           { id: '1', name: 'Papaya', emoji: '🥭' },
           { id: '2', name: 'Apple', emoji: '🍎' },
           { id: '3', name: 'Banana', emoji: '🍌' },
-          { id: '4', name: 'Mango', emoji: '🥭' },
-          { id: '5', name: 'Orange', emoji: '🍊' },
-          { id: '6', name: 'Guava', emoji: '🍈' },
         ];
         setNewlyLaunchedProducts(fruitList);
       }
@@ -82,153 +86,79 @@ export default function FeaturedThisWeek() {
   }, [newlyLaunchedProducts.length]);
 
   return (
-    <div className="mb-6 mt-6">
-      <h2 className="text-lg font-semibold text-neutral-900 mb-3 px-4 tracking-tight">
-        Featured this week
-      </h2>
-      <div className="px-4">
-        <div className="flex gap-2.5 overflow-x-auto scrollbar-hide -mx-4 px-4 scroll-smooth">
-          <div className="flex-shrink-0 w-[110px]">
-            <div className="bg-gradient-to-br from-yellow-50 via-yellow-100 to-yellow-50 border-2 border-yellow-300 rounded-2xl overflow-hidden relative h-48 shadow-lg hover:shadow-xl transition-shadow">
-              <div className="absolute top-0 left-0 right-0 z-20">
-                <div className="bg-gradient-to-r from-red-600 via-orange-500 to-red-600 rounded-b-3xl px-3 py-2 text-center shadow-lg relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
-                  <div className="text-white text-[9px] font-black uppercase leading-tight tracking-wider relative z-10">
-                    <div>NEWLY</div>
-                    <div>LAUNCHED</div>
-                  </div>
-                </div>
+    <div className="mb-8 md:mb-12">
+      <div className="flex items-center justify-between px-4 md:px-6 lg:px-8 mb-4 md:mb-6">
+        <h2 className="text-lg md:text-2xl font-bold text-neutral-900 tracking-tight">
+          Featured this week
+        </h2>
+      </div>
+
+      <div className="px-4 md:px-6 lg:px-8">
+        <div className="flex gap-3 md:gap-4 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4 md:mx-0 md:px-0">
+          {/* Newly Launched Card */}
+          <div className="flex-shrink-0 w-[120px] md:w-[150px]">
+            <div className="h-44 md:h-56 bg-amber-50 border border-amber-200 rounded-xl overflow-hidden relative shadow-sm">
+              <div className="bg-orange-500 text-white text-[8px] md:text-[9px] font-bold uppercase py-1.5 text-center tracking-wider">
+                New Arrivals
               </div>
-              <div className="absolute top-12 right-2 w-8 h-8 bg-yellow-200/30 rounded-full blur-sm"></div>
-              <div className="absolute bottom-16 left-2 w-6 h-6 bg-orange-200/30 rounded-full blur-sm"></div>
-              <div className="relative h-32 mt-10 overflow-hidden bg-yellow-50">
-                {newlyLaunchedProducts.map((product, idx) => (
-                  <div
-                    key={`${product.id || idx}-${product.imageUrl || product.name}`}
-                    className={`absolute inset-0 flex items-center justify-center transition-opacity duration-500 ${idx === currentProductIndex ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                      }`}
+
+              <div className="h-full pt-4 pb-8 flex items-center justify-center">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={currentProductIndex}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 1.1 }}
+                    className="w-full h-full flex items-center justify-center"
                   >
-                    {product.imageUrl ? (
+                    {newlyLaunchedProducts[currentProductIndex]?.imageUrl ? (
                       <img
-                        src={product.imageUrl}
-                        alt={product.name || 'Product'}
-                        className="w-full h-full object-contain p-2 drop-shadow-lg"
+                        src={newlyLaunchedProducts[currentProductIndex].imageUrl}
+                        alt=""
+                        className="w-full h-full object-contain p-2"
                       />
                     ) : (
-                      <div className="text-5xl drop-shadow-md">
-                        {('emoji' in product && product.emoji) || '🍎'}
-                      </div>
+                      <span className="text-4xl md:text-5xl">
+                        {newlyLaunchedProducts[currentProductIndex]?.emoji || '🍎'}
+                      </span>
                     )}
-                  </div>
-                ))}
+                  </motion.div>
+                </AnimatePresence>
               </div>
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20">
-                <div className="bg-gradient-to-r from-amber-700 via-amber-800 to-amber-700 px-3 py-1 rounded-full flex items-center gap-1 shadow-lg border border-amber-900/30">
-                  <div className="w-1 h-1 bg-white rounded-sm rotate-45 shadow-sm"></div>
-                  <span className="text-white text-[8px] font-black tracking-wide">For You</span>
-                  <div className="w-1 h-1 bg-white rounded-sm rotate-45 shadow-sm"></div>
-                </div>
+
+              <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1">
+                {newlyLaunchedProducts.slice(0, 4).map((_, i) => (
+                  <div key={i} className={cn("h-1 rounded-full transition-all duration-300", i === currentProductIndex ? "w-3 bg-orange-600" : "w-1 bg-orange-200")} />
+                ))}
               </div>
             </div>
           </div>
 
-          <div className="flex-shrink-0 w-[110px]">
+          {/* Static Cards */}
+          {featuredCards.slice(1).map((card) => (
             <Link
-              to="/category/snacks"
-              className="block bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 border-2 border-blue-400 rounded-2xl overflow-hidden relative h-48 shadow-lg hover:shadow-xl transition-shadow group"
+              key={card.id}
+              to={card.categoryId ? `/category/${card.categoryId}` : '/offers'}
+              className={cn(
+                "flex-shrink-0 w-[120px] md:w-[150px] h-44 md:h-56 rounded-xl overflow-hidden relative shadow-sm border border-transparent hover:border-white/20 transition-all",
+                card.bgColor
+              )}
             >
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,_white_1px,_transparent_1px)] bg-[length:20px_20px]"></div>
-              </div>
-              <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20">
-                <div className="bg-gradient-to-r from-red-500 to-red-600 px-3 py-1 rounded-full shadow-lg border border-red-400/50">
-                  <span className="text-white text-[9px] font-black tracking-wide">Featured</span>
-                </div>
-              </div>
-              <div className="absolute top-8 right-3 w-12 h-12 bg-yellow-400/20 rounded-full blur-md"></div>
-              <div className="absolute bottom-8 left-3 w-10 h-10 bg-red-500/20 rounded-full blur-md"></div>
-              <div className="flex items-center justify-center h-full px-2 relative z-10">
-                <div className="text-center">
-                  <div
-                    className="text-yellow-400 text-3xl font-black mb-0.5 transform group-hover:scale-105 transition-transform"
-                    style={{
-                      textShadow: '2px 2px 0px #1e3a8a, 3px 3px 6px rgba(0,0,0,0.3)',
-                      letterSpacing: '2px'
-                    }}
-                  >
-                    PRICE
-                  </div>
-                  <div
-                    className="text-red-400 text-3xl font-black transform group-hover:scale-105 transition-transform"
-                    style={{
-                      textShadow: '2px 2px 0px #1e3a8a, 3px 3px 6px rgba(0,0,0,0.3)',
-                      letterSpacing: '2px'
-                    }}
-                  >
-                    DROP
-                  </div>
-                </div>
-              </div>
-            </Link>
-          </div>
-
-          <div className="flex-shrink-0 w-[110px]">
-            <Link
-              to="/category/biscuits-bakery"
-              className="block bg-gradient-to-br from-red-900 via-red-800 to-red-900 border-2 border-white/30 rounded-2xl overflow-hidden relative h-48 shadow-lg hover:shadow-xl transition-shadow group"
-            >
-              <div className="absolute inset-0 opacity-5">
-                <div className="absolute inset-0 bg-[linear-gradient(45deg,_transparent_25%,_white_25%,_white_50%,_transparent_50%,_transparent_75%,_white_75%,_white)] bg-[length:20px_20px]"></div>
-              </div>
-              <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20">
-                <div className="bg-gradient-to-r from-red-500 to-red-600 px-3 py-1 rounded-full shadow-lg border border-red-400/50">
-                  <span className="text-white text-[9px] font-black tracking-wide">Featured</span>
-                </div>
-              </div>
-              <div className="absolute top-8 left-0 right-0 z-20 text-center px-2">
-                <h3 className="text-white text-sm font-black tracking-wide drop-shadow-lg" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>
-                  Plum Cakes
+              <div className="p-4 flex flex-col h-full">
+                <card.icon size={20} className="text-white/40 mb-2" />
+                <h3 className="text-white text-sm md:text-base font-bold leading-tight">
+                  {card.title}
                 </h3>
-              </div>
-              <div className="absolute top-14 right-2 w-6 h-6 bg-white/10 rounded-full blur-sm"></div>
-              <div className="absolute bottom-10 left-2 w-5 h-5 bg-amber-300/20 rounded-full blur-sm"></div>
-              <div className="flex items-center justify-center h-full pt-12 relative z-10">
-                <div className="text-5xl transform group-hover:scale-110 transition-transform drop-shadow-2xl">
-                  🎂
+                <div className="mt-auto">
+                  <span className="text-white/70 text-[10px] uppercase font-bold tracking-wider">Tap to View</span>
                 </div>
               </div>
             </Link>
-          </div>
-
-          <div className="flex-shrink-0 w-[110px]">
-            <Link
-              to="/category/fruits-veg"
-              className="block bg-gradient-to-br from-green-600 via-green-500 to-green-600 border-2 border-green-400 rounded-2xl overflow-hidden relative h-48 shadow-lg hover:shadow-xl transition-shadow group"
-            >
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,_white_2px,_transparent_2px)] bg-[length:30px_30px]"></div>
-              </div>
-              <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20">
-                <div className="bg-gradient-to-r from-green-700 to-green-600 px-3 py-1 rounded-full shadow-lg border border-green-400/50">
-                  <span className="text-white text-[9px] font-black tracking-wide">Featured</span>
-                </div>
-              </div>
-              <div className="absolute top-8 left-0 right-0 z-20 text-center px-2">
-                <h3 className="text-white text-sm font-black tracking-wide drop-shadow-lg" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>
-                  Fresh Arrivals
-                </h3>
-              </div>
-              <div className="absolute top-14 right-2 w-8 h-8 bg-white/20 rounded-full blur-md"></div>
-              <div className="absolute bottom-10 left-2 w-6 h-6 bg-yellow-300/30 rounded-full blur-md"></div>
-              <div className="flex items-center justify-center h-full pt-12 relative z-10 gap-1.5">
-                <div className="text-3xl transform group-hover:scale-110 transition-transform">🍎</div>
-                <div className="text-3xl transform group-hover:scale-110 transition-transform">🍌</div>
-                <div className="text-3xl transform group-hover:scale-110 transition-transform">🍊</div>
-              </div>
-            </Link>
-          </div>
+          ))}
         </div>
       </div>
     </div>
   );
-}
+});
+
+export default FeaturedThisWeek;

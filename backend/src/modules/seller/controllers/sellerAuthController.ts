@@ -20,12 +20,14 @@ export const sendOTP = asyncHandler(async (req: Request, res: Response) => {
     });
   }
 
+  console.log(`[SellerAuth] Login attempt for mobile: ${mobile}`);
   // Check if seller exists with this mobile
   const seller = await Seller.findOne({ mobile });
   if (!seller) {
-    return res.status(404).json({
+    console.log(`[SellerAuth] Seller not found: ${mobile}`);
+    return res.status(400).json({
       success: false,
-      message: "Seller not found with this mobile number",
+      message: "Seller not found with this mobile number. Please register first.",
     });
   }
 
@@ -70,7 +72,7 @@ export const verifyOTP = asyncHandler(async (req: Request, res: Response) => {
   // Find seller
   const seller = await Seller.findOne({ mobile }).select("-password");
   if (!seller) {
-    return res.status(404).json({
+    return res.status(400).json({
       success: false,
       message: "Seller not found",
     });
@@ -189,9 +191,9 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   const location =
     longitude && latitude
       ? {
-          type: "Point" as const,
-          coordinates: [longitude, latitude],
-        }
+        type: "Point" as const,
+        coordinates: [longitude, latitude],
+      }
       : undefined;
 
   // Create new seller with GeoJSON location (password not required during signup)

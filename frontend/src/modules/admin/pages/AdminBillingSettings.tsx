@@ -1,13 +1,32 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '../../../context/ToastContext';
 import { getAppSettings, updateAppSettings, AppSettings } from '../../../services/api/admin/adminSettingsService';
-import { motion } from 'framer-motion';
+import PageHeader from "../components/ui/PageHeader";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+    CreditCard,
+    Truck,
+    Route,
+    MapPin,
+    Banknote,
+    Save,
+    Percent,
+    Settings2,
+    ShieldCheck,
+    AlertCircle,
+    Info,
+    Smartphone
+} from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 
 export default function AdminBillingSettings() {
     const { showToast } = useToast();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [settings, setSettings] = useState<AppSettings | null>(null);
 
     // Form State
     const [platformFee, setPlatformFee] = useState<number>(0);
@@ -32,9 +51,6 @@ export default function AdminBillingSettings() {
             const response = await getAppSettings();
             if (response && response.success && response.data) {
                 const data = response.data;
-                setSettings(data);
-
-                // Initialize State
                 setPlatformFee(data.platformFee || 0);
                 setFreeDeliveryThreshold(data.freeDeliveryThreshold || 0);
                 setDeliveryCharges(data.deliveryCharges || 0);
@@ -47,12 +63,10 @@ export default function AdminBillingSettings() {
                     setDeliveryBoyKmRate(data.deliveryConfig.deliveryBoyKmRate || 0);
                     setGoogleMapsKey(data.deliveryConfig.googleMapsKey || import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '');
                 } else {
-                    // If no config exists, try to pre-fill from env
                     setGoogleMapsKey(import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '');
                 }
             }
         } catch (error: any) {
-            console.error(error);
             showToast(error.message || 'Failed to fetch settings', 'error');
         } finally {
             setLoading(false);
@@ -62,7 +76,6 @@ export default function AdminBillingSettings() {
     const handleSave = async () => {
         try {
             setSaving(true);
-
             const updatePayload: any = {
                 platformFee,
                 freeDeliveryThreshold,
@@ -79,13 +92,11 @@ export default function AdminBillingSettings() {
 
             const response = await updateAppSettings(updatePayload);
             if (response.success) {
-                showToast('Billing settings updated successfully');
-                setSettings(response.data);
+                showToast('Billing configurations updated!', 'success');
             } else {
-                showToast('Failed to update settings', 'error');
+                showToast('Failed to sync settings', 'error');
             }
         } catch (error: any) {
-            console.error(error);
             showToast(error.response?.data?.message || 'Error updating settings', 'error');
         } finally {
             setSaving(false);
@@ -94,226 +105,214 @@ export default function AdminBillingSettings() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center p-12">
-                <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+            <div className="flex items-center justify-center p-24">
+                <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
             </div>
         );
     }
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="max-w-4xl mx-auto"
-        >
-            <div className="flex justify-between items-center mb-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Billing & Charges</h1>
-                    <p className="text-sm text-gray-500">Manage delivery fees, platform charges, and thresholds.</p>
-                </div>
-                <button
+        <div className="space-y-6 max-w-5xl mx-auto">
+            <PageHeader
+                title="Monetization & Logistics"
+                description="Fine-tune your revenue engine and delivery cost structures."
+            >
+                <Button
                     onClick={handleSave}
                     disabled={saving}
-                    className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="gap-2 font-black uppercase tracking-widest h-10 shadow-lg shadow-primary/20"
                 >
-                    {saving ? (
-                        <>
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                            Saving...
-                        </>
-                    ) : (
-                        'Save Changes'
-                    )}
-                </button>
-            </div>
+                    {saving ? "Deploying..." : <><Save className="h-4 w-4" /> Save Ledger</>}
+                </Button>
+            </PageHeader>
 
-            <div className="space-y-6">
-                {/* General Billing Section */}
-                <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b">General Charges</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Platform/Handling Fee (₹)
-                            </label>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* General Fee Panel */}
+                <Card className="border-border bg-card shadow-sm lg:col-span-1">
+                    <CardHeader className="bg-primary/5 border-b border-border">
+                        <CardTitle className="text-md font-bold flex items-center gap-2">
+                            <Banknote className="h-4 w-4 text-primary" /> Core Economics
+                        </CardTitle>
+                        <CardDescription>Baseline platform charges & dynamic thresholds.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-6 space-y-6">
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Handling / Platform Fee</Label>
                             <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
-                                <input
+                                <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
                                     type="number"
-                                    min="0"
                                     value={platformFee}
                                     onChange={(e) => setPlatformFee(Number(e.target.value))}
-                                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                                    placeholder="e.g. 2"
+                                    className="pl-9 h-11 bg-muted/30 border-border"
                                 />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">INR</span>
                             </div>
-                            <p className="mt-1 text-xs text-gray-500">Added to every order as handling charge.</p>
+                            <p className="text-[9px] text-muted-foreground px-1 italic">Applied globally to every check-out event.</p>
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Free Delivery Threshold (₹)
-                            </label>
+                        <Separator className="bg-border/50" />
+
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Gratis Delivery Floor</Label>
                             <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
-                                <input
+                                <Truck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
                                     type="number"
-                                    min="0"
                                     value={freeDeliveryThreshold}
                                     onChange={(e) => setFreeDeliveryThreshold(Number(e.target.value))}
-                                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                                    placeholder="e.g. 499"
+                                    className="pl-9 h-11 bg-muted/30 border-border"
                                 />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">MIN</span>
                             </div>
-                            <p className="mt-1 text-xs text-gray-500">Orders above this amount will have free delivery.</p>
+                            <p className="text-[9px] text-muted-foreground px-1 italic">Free shipping triggered for carts exceeding this amount.</p>
                         </div>
-                    </div>
-                </div>
 
-                {/* Delivery Configuration Section */}
-                <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6">
-                    <div className="flex justify-between items-start mb-6 pb-2 border-b">
+                        <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-xl">
+                            <div className="flex gap-3">
+                                <Info className="h-5 w-5 text-amber-600 shrink-0" />
+                                <p className="text-[10px] leading-relaxed text-amber-700 font-medium">
+                                    Economics directly impact conversion. Ensure thresholds align with average ticket size.
+                                </p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Logistics Engine Panel */}
+                <Card className="border-border bg-card shadow-sm lg:col-span-2">
+                    <CardHeader className="bg-muted/20 border-b border-border flex flex-row items-center justify-between">
                         <div>
-                            <h2 className="text-lg font-semibold text-gray-900">Delivery Configuration</h2>
-                            <p className="text-sm text-gray-500">Choose between fixed or distance-based pricing</p>
+                            <CardTitle className="text-md font-bold">Logistics Pricing Engine</CardTitle>
+                            <CardDescription>Define how delivery costs are computed for the platform.</CardDescription>
                         </div>
+                        <Settings2 className="h-5 w-5 text-muted-foreground/50" />
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                        <Tabs value={isDistanceBased ? "distance" : "fixed"} onValueChange={(val) => setIsDistanceBased(val === "distance")} className="w-full">
+                            <TabsList className="grid w-full grid-cols-2 h-12 p-1 bg-muted border border-border">
+                                <TabsTrigger value="fixed" className="font-bold text-xs gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
+                                    <ShieldCheck className="h-4 w-4" /> Fixed Rate Model
+                                </TabsTrigger>
+                                <TabsTrigger value="distance" className="font-bold text-xs gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
+                                    <Route className="h-4 w-4" /> Distance Matrix V2
+                                </TabsTrigger>
+                            </TabsList>
 
-                        <div className="flex items-center gap-2 bg-neutral-100 p-1 rounded-lg">
-                            <button
-                                onClick={() => setIsDistanceBased(false)}
-                                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${!isDistanceBased ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                                    }`}
-                            >
-                                Fixed Price
-                            </button>
-                            <button
-                                onClick={() => setIsDistanceBased(true)}
-                                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${isDistanceBased ? 'bg-white text-green-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                                    }`}
-                            >
-                                Distance Based
-                            </button>
-                        </div>
-                    </div>
-
-                    {!isDistanceBased ? (
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="max-w-md"
-                        >
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Fixed Delivery Charge (₹)
-                            </label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={deliveryCharges}
-                                    onChange={(e) => setDeliveryCharges(Number(e.target.value))}
-                                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                                    placeholder="e.g. 40"
-                                />
-                            </div>
-                            <p className="mt-1 text-xs text-gray-500">Flat fee charged for all deliveries below threshold.</p>
-                        </motion.div>
-                    ) : (
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6"
-                        >
-                            <div className="col-span-full bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm text-blue-800 mb-2">
-                                <strong>Note:</strong> Distance calculation requires Google Maps API Key. Without a key, it may fallback to straight line distance.
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Base Charge (₹)
-                                </label>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        value={baseCharge}
-                                        onChange={(e) => setBaseCharge(Number(e.target.value))}
-                                        className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                                    />
+                            <TabsContent value="fixed" className="pt-8 space-y-6">
+                                <div className="space-y-1.5 max-w-xs">
+                                    <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Flat Delivery Surcharge</Label>
+                                    <div className="relative">
+                                        <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            type="number"
+                                            value={deliveryCharges}
+                                            onChange={(e) => setDeliveryCharges(Number(e.target.value))}
+                                            className="pl-9 h-11 bg-muted/30 border-border"
+                                        />
+                                    </div>
+                                    <p className="text-[9px] text-muted-foreground italic">Standard fee for all deliveries under the floor threshold.</p>
                                 </div>
-                                <p className="mt-1 text-xs text-gray-500">Min charge for first X kms.</p>
-                            </div>
+                            </TabsContent>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Base Distance (km)
-                                </label>
-                                <div className="relative">
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        step="0.1"
-                                        value={baseDistance}
-                                        onChange={(e) => setBaseDistance(Number(e.target.value))}
-                                        className="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                                    />
-                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">km</span>
+                            <TabsContent value="distance" className="pt-8 space-y-8">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-4">
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Base Logistics Fee</Label>
+                                            <div className="relative">
+                                                <Input
+                                                    type="number"
+                                                    value={baseCharge}
+                                                    onChange={(e) => setBaseCharge(Number(e.target.value))}
+                                                    className="h-11 bg-muted/30 border-border"
+                                                />
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black">INR</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Base Distance Unit</Label>
+                                            <div className="relative">
+                                                <Input
+                                                    type="number"
+                                                    value={baseDistance}
+                                                    onChange={(e) => setBaseDistance(Number(e.target.value))}
+                                                    className="h-11 bg-muted/30 border-border"
+                                                />
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-primary">KM</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Marginal Per-KM Charge</Label>
+                                            <div className="relative">
+                                                <Input
+                                                    type="number"
+                                                    value={kmRate}
+                                                    onChange={(e) => setKmRate(Number(e.target.value))}
+                                                    className="h-11 bg-muted/30 border-border"
+                                                />
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-rose-500">+ INR</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Agent Micro-Commission</Label>
+                                            <div className="relative">
+                                                <Input
+                                                    type="number"
+                                                    value={deliveryBoyKmRate}
+                                                    onChange={(e) => setDeliveryBoyKmRate(Number(e.target.value))}
+                                                    className="h-11 bg-muted/30 border-border"
+                                                />
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-emerald-600">INC/KM</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <p className="mt-1 text-xs text-gray-500">Distance covered in base charge.</p>
-                            </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Extra per km Charge (₹)
-                                </label>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        value={kmRate}
-                                        onChange={(e) => setKmRate(Number(e.target.value))}
-                                        className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                                    />
+                                <div className="space-y-2.5">
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Geospatial Intelligence Key</Label>
+                                        <Badge variant="outline" className="text-[8px] bg-blue-500/5 text-blue-600">GOOGLE MAPS PLATFORM</Badge>
+                                    </div>
+                                    <div className="relative">
+                                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            value={googleMapsKey}
+                                            onChange={(e) => setGoogleMapsKey(e.target.value)}
+                                            placeholder="AIzaSyA..."
+                                            className="pl-10 h-11 bg-muted/30 border-border font-mono text-xs"
+                                        />
+                                    </div>
+                                    <div className="flex items-start gap-2 p-3 bg-blue-500/5 border border-blue-500/10 rounded-xl">
+                                        <AlertCircle className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+                                        <p className="text-[9px] leading-relaxed text-blue-700 font-medium italic">
+                                            Distance-based fee computation requires an active Places/Distance Matrix API key.
+                                            Fallback to straight-line distance if key is invalid.
+                                        </p>
+                                    </div>
                                 </div>
-                                <p className="mt-1 text-xs text-gray-500">Charged for every km after base distance.</p>
-                            </div>
+                            </TabsContent>
+                        </Tabs>
+                    </CardContent>
+                </Card>
+            </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Delivery Boy Commission (₹/km)
-                                </label>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        value={deliveryBoyKmRate}
-                                        onChange={(e) => setDeliveryBoyKmRate(Number(e.target.value))}
-                                        className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                                    />
-                                </div>
-                                <p className="mt-1 text-xs text-gray-500">Amount paid to delivery partner per km.</p>
-                            </div>
-
-                            <div className="col-span-full">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Google Maps API Key (Optional)
-                                </label>
-                                <input
-                                    type="text"
-                                    value={googleMapsKey}
-                                    onChange={(e) => setGoogleMapsKey(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                                    placeholder="AIza..."
-                                />
-                                <p className="mt-1 text-xs text-gray-500">Required for accurate road distance calculation.</p>
-                            </div>
-                        </motion.div>
-                    )}
+            <div className="flex items-center justify-center gap-6 py-12 opacity-20 pointer-events-none grayscale">
+                <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-6 w-6" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">PCI-DSS COMPLIANT</span>
+                </div>
+                <Separator orientation="vertical" className="h-4" />
+                <div className="flex items-center gap-2">
+                    <Smartphone className="h-6 w-6" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">APP-SYNC v4.1</span>
                 </div>
             </div>
-        </motion.div>
+        </div>
     );
 }

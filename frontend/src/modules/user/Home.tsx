@@ -1,46 +1,55 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import HomeHero from "./components/HomeHero";
 import PromoStrip from "./components/PromoStrip";
 import LowestPricesEver from "./components/LowestPricesEver";
 import CategoryTileSection from "./components/CategoryTileSection";
 import FeaturedThisWeek from "./components/FeaturedThisWeek";
 import ProductCard from "./components/ProductCard";
+import HomeSkeleton from "./components/HomeSkeleton";
 import { getHomeContent } from "../../services/api/customerHomeService";
 import { getHeaderCategoriesPublic } from "../../services/api/headerCategoryService";
 import { useLocation } from "../../hooks/useLocation";
 import { useLoading } from "../../context/LoadingContext";
-import PageLoader from "../../components/PageLoader";
-
 import { useThemeContext } from "../../context/ThemeContext";
+import { cn } from "@/lib/utils";
+
+// Animation variants for sections
+const sectionVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, ease: "easeOut" }
+  }
+};
 
 export default function Home() {
   const navigate = useNavigate();
   const { location } = useLocation();
   const { activeCategory, setActiveCategory } = useThemeContext();
   const { startRouteLoading, stopRouteLoading } = useLoading();
-  const activeTab = activeCategory; // mapping for existing code compatibility
+  const activeTab = activeCategory;
   const setActiveTab = setActiveCategory;
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollHandledRef = useRef(false);
   const SCROLL_POSITION_KEY = 'home-scroll-position';
 
-  // State for dynamic data
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [homeData, setHomeData] = useState<any>({
     bestsellers: [],
     categories: [],
-    homeSections: [], // Dynamic sections created by admin
+    homeSections: [],
     shops: [],
     promoBanners: [],
     trending: [],
-    cookingIdeas: [],
+    lowestPrices: [],
   });
 
   const [products, setProducts] = useState<any[]>([]);
 
-  // Function to save scroll position before navigation
   const saveScrollPosition = () => {
     const mainElement = document.querySelector('main');
     const scrollPos = Math.max(
@@ -66,7 +75,6 @@ export default function Home() {
         );
         if (response.success && response.data) {
           setHomeData(response.data);
-
           if (response.data.bestsellers) {
             setProducts(response.data.bestsellers);
           }
@@ -84,43 +92,25 @@ export default function Home() {
 
     fetchData();
 
-    // Preload PromoStrip data for all header categories in the background
-    // This ensures instant loading when users switch tabs
     const preloadHeaderCategories = async () => {
       try {
-        // Wait a bit after initial load to not interfere with main content
         await new Promise(resolve => setTimeout(resolve, 1000));
-
         const headerCategories = await getHeaderCategoriesPublic(true);
-        // Preload data for each header category (including 'all')
         const slugsToPreload = ['all', ...headerCategories.map(cat => cat.slug)];
-
-        // Preload in batches to avoid overwhelming the network
         const batchSize = 2;
         for (let i = 0; i < slugsToPreload.length; i += batchSize) {
           const batch = slugsToPreload.slice(i, i + batchSize);
           await Promise.all(
             batch.map(slug =>
-              getHomeContent(
-                slug,
-                location?.latitude,
-                location?.longitude,
-                true,
-                5 * 60 * 1000,
-                true
-              ).catch(err => {
-                // Silently fail - this is just preloading
-                console.debug(`Failed to preload data for ${slug}:`, err);
-              })
+              getHomeContent(slug, location?.latitude, location?.longitude, true, 5 * 60 * 1000, true)
+                .catch(err => console.debug(`Failed to preload data for ${slug}:`, err))
             )
           );
-          // Small delay between batches
           if (i + batchSize < slugsToPreload.length) {
             await new Promise(resolve => setTimeout(resolve, 200));
           }
         }
       } catch (error) {
-        // Silently fail - preloading is optional
         console.debug("Failed to preload header categories:", error);
       }
     };
@@ -128,67 +118,39 @@ export default function Home() {
     preloadHeaderCategories();
   }, [location?.latitude, location?.longitude]);
 
-  // Restore scroll position when returning to this page
   useEffect(() => {
-    // Only restore scroll after data has loaded
-    if (!loading && homeData.shops) {
-      // Use a ref to ensure we only handle initial scroll once per mount
+    if (!loading && (homeData.shops || products.length)) {
       if (scrollHandledRef.current) return;
       scrollHandledRef.current = true;
 
       const savedScrollPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
       if (savedScrollPosition) {
         const scrollY = parseInt(savedScrollPosition, 10);
-
         const performScroll = () => {
           const mainElement = document.querySelector('main');
-          if (mainElement) {
-            mainElement.scrollTop = scrollY;
-          }
+          if (mainElement) mainElement.scrollTop = scrollY;
           window.scrollTo(0, scrollY);
         };
-
-        // Try multiple times to ensure scroll is applied even if content is still rendering
         requestAnimationFrame(() => {
           performScroll();
           requestAnimationFrame(() => {
             performScroll();
-            // Final fallback after a small delay for any late-rendering content
             setTimeout(performScroll, 100);
             setTimeout(performScroll, 300);
           });
         });
-
-        // Clear the saved position after some time to ensure AppLayout can also see it if needed
-        // but Home.tsx is the primary restorer now.
-        setTimeout(() => {
-          sessionStorage.removeItem(SCROLL_POSITION_KEY);
-        }, 1000);
-      } else {
-        // No saved position, ensure we start at the top
-        const performReset = () => {
-          const mainElement = document.querySelector('main');
-          if (mainElement) {
-            mainElement.scrollTop = 0;
-          }
-          window.scrollTo(0, 0);
-        };
-        requestAnimationFrame(performReset);
-        setTimeout(performReset, 100);
+        setTimeout(() => sessionStorage.removeItem(SCROLL_POSITION_KEY), 1000);
       }
     }
-  }, [loading, homeData.shops]);
+  }, [loading, homeData.shops, products.length]);
 
-  // Global click/touch listener to save scroll position before any navigation
   useEffect(() => {
     const handleNavigationEvent = (e: MouseEvent | TouchEvent) => {
       const target = e.target as HTMLElement;
-      // If clicking a link, button, or any element with cursor-pointer (like product cards/store tiles)
       if (target.closest('a') || target.closest('button') || target.closest('[role="button"]') || target.closest('.cursor-pointer')) {
         saveScrollPosition();
       }
     };
-
     window.addEventListener('click', handleNavigationEvent, { capture: true });
     window.addEventListener('touchstart', handleNavigationEvent, { capture: true, passive: true });
     return () => {
@@ -197,25 +159,16 @@ export default function Home() {
     };
   }, []);
 
-  // Removed duplicate saveScrollPosition
-  const getFilteredProducts = (tabId: string) => {
-    if (tabId === "all") {
-      return products;
-    }
-    return products.filter(
-      (p) =>
-        p.categoryId === tabId ||
-        (p.category && (p.category._id === tabId || p.category.slug === tabId))
-    );
-  };
-
   const filteredProducts = useMemo(
-    () => getFilteredProducts(activeTab),
+    () => {
+      if (activeTab === "all") return products;
+      return products.filter(p => p.categoryId === activeTab || (p.category && (p.category._id === activeTab || p.category.slug === activeTab)));
+    },
     [activeTab, products]
   );
 
   if (loading && !products.length) {
-    return <PageLoader />; // Let the global IconLoader handle the initial loading state
+    return <HomeSkeleton />;
   }
 
   if (error && !loading) {
@@ -240,192 +193,126 @@ export default function Home() {
 
   return (
     <div className="bg-white min-h-screen pb-20 md:pb-0" ref={contentRef}>
-      {/* Hero Header with Gradient and Tabs */}
       <HomeHero activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {/* Promo Strip */}
       <PromoStrip activeTab={activeTab} />
 
-      {/* LOWEST PRICES EVER Section */}
       <LowestPricesEver activeTab={activeTab} products={homeData.lowestPrices} />
 
-      {/* Main content */}
-      <div
-        className="bg-neutral-50 -mt-2 pt-1 space-y-5 md:space-y-8 md:pt-4">
-        {/* Filtered Products Section */}
+      <div className="bg-neutral-50 -mt-2 pt-1 pb-10 space-y-6 md:space-y-10">
         {activeTab !== "all" && (
-          <div data-products-section className="mt-6 mb-6 md:mt-8 md:mb-8">
-            <h2 className="text-lg md:text-2xl font-semibold text-neutral-900 mb-3 md:mb-6 px-4 md:px-6 lg:px-8 tracking-tight capitalize">
-              {activeTab === "grocery" ? "Grocery Items" : activeTab}
+          <div className="px-4 md:px-6 lg:px-8">
+            <h2 className="text-lg md:text-2xl font-bold text-neutral-900 mb-4 md:mb-6 tracking-tight capitalize">
+              {activeTab === "grocery" ? "Essential Grocery" : activeTab}
             </h2>
-            <div className="px-4 md:px-6 lg:px-8">
-              {filteredProducts.length > 0 ? (
-                <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 md:gap-4">
-                  {filteredProducts.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      categoryStyle={true}
-                      showBadge={true}
-                      showPackBadge={false}
-                      showStockInfo={true}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12 md:py-16 text-neutral-500">
-                  <p className="text-lg md:text-xl mb-2">No products found</p>
-                  <p className="text-sm md:text-base">
-                    Try selecting a different category
-                  </p>
-                </div>
-              )}
-            </div>
+            {filteredProducts.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4 lg:gap-6">
+                {filteredProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    categoryStyle={true}
+                    showBadge={true}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-16 text-neutral-400 bg-white rounded-2xl border border-dashed border-neutral-200">
+                <p className="text-lg font-medium mb-1">No products found</p>
+                <p className="text-sm">Try selecting a different category</p>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Bestsellers Section */}
         {activeTab === "all" && (
           <>
-            <div className="mt-2 md:mt-4">
-              <CategoryTileSection
-                title="Bestsellers"
-                tiles={
-                  homeData.bestsellers && homeData.bestsellers.length > 0
-                    ? homeData.bestsellers
-                      .slice(0, 6)
-                      .map((card: any) => {
-                        // Bestseller cards have categoryId and productImages array from backend
-                        return {
-                          id: card.id,
-                          categoryId: card.categoryId,
-                          name: card.name || "Category",
-                          productImages: card.productImages || [],
-                          productCount: card.productCount || 0,
-                        };
-                      })
-                    : []
-                }
-                columns={3}
-                showProductCount={true}
-              />
-            </div>
+            <CategoryTileSection
+              title="Bestsellers"
+              tiles={
+                homeData.bestsellers?.slice(0, 6).map((card: any) => ({
+                  id: card.id,
+                  categoryId: card.categoryId,
+                  name: card.name || "Category",
+                  productImages: card.productImages || [],
+                  productCount: card.productCount || 0,
+                })) || []
+              }
+              columns={3}
+              showProductCount={true}
+            />
 
-            {/* Featured this week Section */}
             <FeaturedThisWeek />
 
-            {/* Dynamic Home Sections - Render sections created by admin */}
-            {homeData.homeSections && homeData.homeSections.length > 0 && (
-              <>
-                {homeData.homeSections.map((section: any) => {
-                  const columnCount = Number(section.columns) || 4;
+            {homeData.homeSections?.map((section: any) => (
+              <div key={section.id}>
+                {section.displayType === "products" ? (
+                  <div className="px-4 md:px-6 lg:px-8">
+                    {section.title && (
+                      <h2 className="text-lg md:text-2xl font-bold text-neutral-900 mb-4 md:mb-6 tracking-tight capitalize">
+                        {section.title}
+                      </h2>
+                    )}
+                    <div className={cn(
+                      "grid gap-3 md:gap-4 lg:gap-6",
+                      section.columns === 2 ? "grid-cols-2" :
+                        section.columns === 3 ? "grid-cols-3" :
+                          section.columns === 6 ? "grid-cols-3 md:grid-cols-6" :
+                            "grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+                    )}>
+                      {section.data?.map((product: any) => (
+                        <ProductCard
+                          key={product.id || product._id}
+                          product={product}
+                          categoryStyle={true}
+                          showBadge={true}
+                          compact={section.columns >= 4}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <CategoryTileSection
+                    title={section.title}
+                    tiles={section.data || []}
+                    columns={section.columns}
+                  />
+                )}
+              </div>
+            ))}
 
-                  if (section.displayType === "products" && section.data && section.data.length > 0) {
-                    // Strict column mapping as requested - applies to ALL screen sizes including mobile
-                    const gridClass = {
-                      2: "grid-cols-2",
-                      3: "grid-cols-3",
-                      4: "grid-cols-4",
-                      6: "grid-cols-6",
-                      8: "grid-cols-8"
-                    }[columnCount] || "grid-cols-4";
-
-                    // Use compact mode for 4 or more columns to fit content on mobile
-                    const isCompact = columnCount >= 4;
-                    const gapClass = columnCount >= 4 ? "gap-2" : "gap-3 md:gap-4";
-
-                    return (
-                      <div key={section.id} className="mt-6 mb-6 md:mt-8 md:mb-8">
-                        {section.title && (
-                          <h2 className="text-lg md:text-2xl font-semibold text-neutral-900 mb-3 md:mb-6 px-4 md:px-6 lg:px-8 tracking-tight capitalize">
-                            {section.title}
-                          </h2>
-                        )}
-                        <div className="px-4 md:px-6 lg:px-8">
-                          <div className={`grid ${gridClass} ${gapClass}`}>
-                            {section.data.map((product: any) => (
-                              <ProductCard
-                                key={product.id || product._id}
-                                product={product}
-                                categoryStyle={true}
-                                showBadge={true}
-                                showPackBadge={false}
-                                showStockInfo={false}
-                                compact={isCompact}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <CategoryTileSection
-                      key={section.id}
-                      title={section.title}
-                      tiles={section.data || []}
-                      columns={columnCount as 2 | 3 | 4 | 6 | 8}
-                      showProductCount={false}
-                    />
-                  );
-                })}
-              </>
-            )}
-
-            {/* Shop by Store Section */}
-            <div className="mb-6 mt-6 md:mb-8 md:mt-8">
-              <h2 className="text-lg md:text-2xl font-semibold text-neutral-900 mb-3 md:mb-6 px-4 md:px-6 lg:px-8 tracking-tight">
+            <div className="px-4 md:px-6 lg:px-8">
+              <h2 className="text-lg md:text-2xl font-bold text-neutral-900 mb-4 md:mb-6 tracking-tight">
                 Shop by Store
               </h2>
-              <div className="px-4 md:px-6 lg:px-8">
-                <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 md:gap-4">
-                  {(homeData.shops || []).map((tile: any) => {
-                    const hasImages =
-                      tile.image ||
-                      (tile.productImages &&
-                        tile.productImages.filter(Boolean).length > 0);
-
-                    return (
-                      <div key={tile.id} className="flex flex-col">
-                        <div
-                          onClick={() => {
-                            const storeSlug =
-                              tile.slug || tile.id.replace("-store", "");
-                            saveScrollPosition();
-                            navigate(`/store/${storeSlug}`);
-                          }}
-                          className="block bg-white rounded-xl shadow-sm border border-neutral-200 hover:shadow-md transition-shadow cursor-pointer overflow-hidden">
-                          {hasImages ? (
-                            <img
-                              src={
-                                tile.image ||
-                                (tile.productImages
-                                  ? tile.productImages[0]
-                                  : "")
-                              }
-                              alt={tile.name}
-                              className="w-full h-16 object-cover"
-                            />
-                          ) : (
-                            <div
-                              className={`w-full h-16 flex items-center justify-center text-3xl text-neutral-300 ${tile.bgColor || "bg-neutral-50"
-                                }`}>
-                              {tile.name.charAt(0)}
-                            </div>
-                          )}
+              <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 md:gap-4 lg:gap-6">
+                {(homeData.shops || []).map((tile: any) => (
+                  <div
+                    key={tile.id}
+                    className="group flex flex-col items-center"
+                    onClick={() => {
+                      saveScrollPosition();
+                      navigate(`/store/${tile.slug || tile.id.replace("-store", "")}`);
+                    }}
+                  >
+                    <div className="w-full aspect-square rounded-xl md:rounded-2xl bg-white shadow-sm border border-neutral-100 p-2 md:p-3 hover:shadow-md transition-all duration-300 cursor-pointer overflow-hidden flex items-center justify-center">
+                      {tile.image || (tile.productImages?.length) ? (
+                        <img
+                          src={tile.image || tile.productImages[0]}
+                          alt={tile.name}
+                          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xl font-bold text-neutral-200 uppercase">
+                          {tile.name.charAt(0)}
                         </div>
-
-                        {/* Tile name - outside card */}
-                        <div className="mt-1.5 text-center">
-                          <span className="text-xs font-semibold text-neutral-900 line-clamp-2 leading-tight">
-                            {tile.name}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      )}
+                    </div>
+                    <span className="mt-2 text-[10px] md:text-xs font-semibold text-neutral-800 text-center line-clamp-2 px-1">
+                      {tile.name}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           </>

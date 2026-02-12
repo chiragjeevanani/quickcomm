@@ -121,6 +121,7 @@ router.post("/categories/bulk-delete", productController.bulkDeleteCategories);
 router.put("/categories/reorder", productController.updateCategoryOrder);
 
 // ==================== SubCategory Routes ====================
+router.put("/subcategories/reorder", productController.updateSubCategoryOrder);
 router.post("/subcategories", productController.createSubCategory);
 router.get("/subcategories", productController.getSubCategories);
 router.put("/subcategories/:id", productController.updateSubCategory);
@@ -187,6 +188,7 @@ router.get(
   "/delivery/:id/cash-collections",
   deliveryController.getDeliveryBoyCashCollections
 );
+router.post("/delivery/fund-transfer", deliveryController.addFundTransfer);
 
 // ==================== Payment Routes ====================
 router.get("/payment-methods", paymentController.getPaymentMethods);

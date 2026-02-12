@@ -51,6 +51,10 @@ export interface ReorderCategoriesData {
   categories: Array<{ id: string; order: number }>;
 }
 
+export interface ReorderSubCategoriesData {
+  subcategories: Array<{ id: string; order: number }>;
+}
+
 export interface UpdateCategoryOrderData {
   categories: Array<{ id: string; order: number }>;
 }
@@ -288,6 +292,19 @@ export const updateCategoryOrder = async (
 ): Promise<ApiResponse<void>> => {
   const response = await api.put<ApiResponse<void>>(
     "/admin/categories/reorder",
+    data
+  );
+  return response.data;
+};
+
+/**
+ * Update subcategory order
+ */
+export const updateSubCategoryOrder = async (
+  data: ReorderSubCategoriesData
+): Promise<ApiResponse<void>> => {
+  const response = await api.put<ApiResponse<void>>(
+    "/admin/subcategories/reorder",
     data
   );
   return response.data;

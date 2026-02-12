@@ -10,6 +10,37 @@ import {
 import { getCategories, getSubcategories, type Category, type SubCategory } from "../../../services/api/categoryService";
 import { getHeaderCategoriesAdmin, type HeaderCategory } from "../../../services/api/headerCategoryService";
 
+// UI Components
+import PageHeader from "../components/ui/PageHeader";
+import DataTable from "../components/ui/DataTable";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+
+// Icons
+import {
+    Search,
+    Plus,
+    Edit2,
+    Trash2,
+    Loader2,
+    Save,
+    LayoutTemplate,
+    RefreshCw
+} from "lucide-react";
+import { toast } from "react-hot-toast";
+
 const DISPLAY_TYPE_OPTIONS = [
     { value: "subcategories", label: "Subcategories" },
     { value: "products", label: "Products" },
@@ -41,12 +72,11 @@ export default function AdminHomeSection() {
     const [loading, setLoading] = useState(false);
     const [loadingSections, setLoadingSections] = useState(true);
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [error, setError] = useState("");
-    const [success, setSuccess] = useState("");
 
     // Pagination
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
+    const [searchTerm, setSearchTerm] = useState("");
 
     // Fetch initial data
     useEffect(() => {
@@ -120,7 +150,7 @@ export default function AdminHomeSection() {
             }
         } catch (err) {
             console.error("Error fetching sections:", err);
-            setError("Failed to load sections");
+            toast.error("Failed to load sections");
         } finally {
             setLoadingSections(false);
         }
@@ -168,25 +198,22 @@ export default function AdminHomeSection() {
     };
 
     const handleSubmit = async () => {
-        setError("");
-        setSuccess("");
-
         // Validation
         if (!title.trim()) {
-            setError("Please enter a section title");
+            toast.error("Please enter a section title");
             return;
         }
         if (!slug.trim()) {
-            setError("Please enter a slug");
+            toast.error("Please enter a slug");
             return;
         }
         if (displayType === "categories") {
             if (!selectedHeaderCategory) {
-                setError("Please select a header category");
+                toast.error("Please select a header category");
                 return;
             }
             if (selectedCategories.length === 0) {
-                setError("Please select at least one category");
+                toast.error("Please select at least one category");
                 return;
             }
         }
@@ -209,20 +236,20 @@ export default function AdminHomeSection() {
             if (editingId) {
                 const response = await updateHomeSection(editingId, formData);
                 if (response.success) {
-                    setSuccess("Section updated successfully!");
+                    toast.success("Section updated successfully!");
                     resetForm();
                     fetchSections();
                 }
             } else {
                 const response = await createHomeSection(formData);
                 if (response.success) {
-                    setSuccess("Section created successfully!");
+                    toast.success("Section created successfully!");
                     resetForm();
                     fetchSections();
                 }
             }
         } catch (err: any) {
-            setError(err.response?.data?.message || "Failed to save section");
+            toast.error(err.response?.data?.message || "Failed to save section");
         } finally {
             setLoading(false);
         }
@@ -237,9 +264,6 @@ export default function AdminHomeSection() {
         if (section.displayType === "categories") {
             const firstCategory = section.categories?.[0];
             if (firstCategory) {
-                // We need to find the category in our categories list
-                // Since categories might not be loaded yet, we'll set it after categories are loaded
-                // For now, we'll try to find it
                 const category = categories.find(c => c._id === firstCategory._id);
                 if (category) {
                     const headerId = typeof category.headerCategoryId === 'string'
@@ -249,8 +273,6 @@ export default function AdminHomeSection() {
                         setSelectedHeaderCategory(headerId);
                     }
                 } else {
-                    // If category not found yet, we'll set it in a useEffect
-                    // For now, clear it and let the useEffect handle it
                     setSelectedHeaderCategory("");
                 }
             } else {
@@ -266,7 +288,10 @@ export default function AdminHomeSection() {
         setLimit(section.limit);
         setIsActive(section.isActive);
         setEditingId(section._id);
-        window.scrollTo({ top: 0, behavior: "smooth" });
+
+        // Scroll to form
+        const formElement = document.getElementById("section-form");
+        if (formElement) formElement.scrollIntoView({ behavior: "smooth" });
     };
 
     const handleDelete = async (id: string) => {
@@ -277,14 +302,14 @@ export default function AdminHomeSection() {
         try {
             const response = await deleteHomeSection(id);
             if (response.success) {
-                setSuccess("Section deleted successfully!");
+                toast.success("Section deleted successfully!");
                 fetchSections();
                 if (editingId === id) {
                     resetForm();
                 }
             }
         } catch (err: any) {
-            setError(err.response?.data?.message || "Failed to delete section");
+            toast.error(err.response?.data?.message || "Failed to delete section");
         }
     };
 
@@ -301,518 +326,433 @@ export default function AdminHomeSection() {
         setEditingId(null);
     };
 
+    // Filtered sections for search
+    const filteredSections = sections.filter(section =>
+        section.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        section.slug.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     // Pagination
-    const totalPages = Math.ceil(sections.length / rowsPerPage);
+    const totalPages = Math.ceil(filteredSections.length / rowsPerPage);
     const startIndex = (currentPage - 1) * rowsPerPage;
     const endIndex = startIndex + rowsPerPage;
-    const displayedSections = sections.slice(startIndex, endIndex);
+    const displayedSections = filteredSections.slice(startIndex, endIndex);
+
+    // Columns for DataTable
+    const columnsDef = [
+        {
+            header: "Order",
+            accessorKey: "order",
+            cell: (item: HomeSection) => (
+                <span className="font-mono text-xs">{item.order || '-'}</span>
+            )
+        },
+        {
+            header: "Title",
+            accessorKey: "title",
+            cell: (item: HomeSection) => (
+                <div className="flex flex-col">
+                    <span className="font-medium">{item.title}</span>
+                    <span className="text-xs text-muted-foreground">{item.slug}</span>
+                </div>
+            )
+        },
+        {
+            header: "Type",
+            accessorKey: "displayType",
+            cell: (item: HomeSection) => (
+                <Badge variant="outline" className="capitalize">{item.displayType}</Badge>
+            )
+        },
+        {
+            header: "Categories",
+            accessorKey: "categories",
+            cell: (item: HomeSection) => (
+                <span className="text-xs max-w-[200px] truncate block" title={item.categories?.map((c: any) => c.name).join(", ")}>
+                    {item.categories && item.categories.length > 0
+                        ? item.categories.map((c: any) => c.name).join(", ")
+                        : "All"}
+                </span>
+            )
+        },
+        {
+            header: "Columns",
+            accessorKey: "columns",
+            cell: (item: HomeSection) => (
+                <span className="text-xs">{item.columns}</span>
+            )
+        },
+        {
+            header: "Status",
+            accessorKey: "isActive",
+            cell: (item: HomeSection) => (
+                <Badge variant={item.isActive ? "default" : "secondary"}>
+                    {item.isActive ? "Active" : "Inactive"}
+                </Badge>
+            )
+        },
+        {
+            header: "Actions",
+            accessorKey: "_id",
+            cell: (item: HomeSection) => (
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        onClick={() => handleEdit(item)}
+                        title="Edit"
+                    >
+                        <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleDelete(item._id)}
+                        title="Delete"
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                </div>
+            )
+        }
+    ];
 
     return (
-        <div className="flex flex-col h-full bg-gray-50">
-            {/* Page Header */}
-            <div className="p-6 pb-0">
-                <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-semibold text-neutral-800">
-                        Home Sections
-                    </h1>
-                    <div className="text-sm text-blue-500">
-                        <span className="text-blue-500 hover:underline cursor-pointer">
-                            Home
-                        </span>{" "}
-                        <span className="text-neutral-400">/</span> Home Sections
-                    </div>
-                </div>
-            </div>
+        <div className="space-y-6 animate-in fade-in duration-500">
+            <PageHeader
+                title="Home Sections"
+                description="Manage content sections on the home page"
+            >
+                <Button variant="outline" size="sm" onClick={fetchSections}>
+                    <RefreshCw className={`h-4 w-4 mr-2 ${loadingSections ? 'animate-spin' : ''}`} /> Refresh
+                </Button>
+            </PageHeader>
 
-            {/* Success/Error Messages */}
-            {(success || error) && (
-                <div className="px-6">
-                    {success && (
-                        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-4">
-                            {success}
-                        </div>
-                    )}
-                    {error && (
-                        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-                            {error}
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* Page Content */}
-            <div className="flex-1 px-6 pb-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-                    {/* Left Sidebar: Add/Edit Form */}
-                    <div className="bg-white rounded-lg shadow-sm border border-neutral-200 p-6 flex flex-col">
-                        <h2 className="text-lg font-semibold text-neutral-800 mb-4">
-                            {editingId ? "Edit Section" : "Add Section"}
-                        </h2>
-
-                        <div className="space-y-4 flex-1 overflow-y-auto">
-                            {/* Title */}
-                            <div>
-                                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                                    Section Title <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="text"
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Left Sidebar: Add/Edit Form */}
+                <Card className="lg:col-span-1 h-fit border-border shadow-sm" id="section-form">
+                    <CardHeader className="bg-muted/50 border-b border-border pb-4">
+                        <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                            {editingId ? (
+                                <>
+                                    <Edit2 className="h-4 w-4 text-primary" /> Edit Section
+                                </>
+                            ) : (
+                                <>
+                                    <Plus className="h-4 w-4 text-primary" /> Add New Section
+                                </>
+                            )}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-4">
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="title">Section Title <span className="text-destructive">*</span></Label>
+                                <Input
+                                    id="title"
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
                                     placeholder="e.g., Grocery & Kitchen"
-                                    className="w-full px-3 py-2 border border-neutral-300 rounded bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
                                 />
                             </div>
 
-                            {/* Slug */}
-                            <div>
-                                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                                    Slug <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="text"
+                            <div className="space-y-2">
+                                <Label htmlFor="slug">Slug <span className="text-destructive">*</span></Label>
+                                <Input
+                                    id="slug"
                                     value={slug}
                                     onChange={(e) => setSlug(e.target.value)}
                                     placeholder="grocery-kitchen"
-                                    className="w-full px-3 py-2 border border-neutral-300 rounded bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
                                 />
-                                <p className="text-xs text-neutral-500 mt-1">
-                                    URL-friendly identifier (lowercase, hyphens only)
+                                <p className="text-[10px] text-muted-foreground">
+                                    URL-friendly identifier
                                 </p>
                             </div>
 
-                            {/* Display Type */}
-                            <div>
-                                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                                    Display Type <span className="text-red-500">*</span>
-                                </label>
-                                <select
+                            <div className="space-y-2">
+                                <Label>Display Type <span className="text-destructive">*</span></Label>
+                                <Select
                                     value={displayType}
-                                    onChange={(e) => {
-                                        const newDisplayType = e.target.value as "subcategories" | "products" | "categories";
-                                        setDisplayType(newDisplayType);
-                                        // Clear selections when switching display types
-                                        if (newDisplayType === "categories") {
+                                    onValueChange={(val: any) => {
+                                        setDisplayType(val);
+                                        if (val === "categories") {
                                             setSelectedSubCategories([]);
                                         } else {
                                             setSelectedHeaderCategory("");
                                         }
                                     }}
-                                    className="w-full px-3 py-2 border border-neutral-300 rounded bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
                                 >
-                                    {DISPLAY_TYPE_OPTIONS.map((option) => (
-                                        <option key={option.value} value={option.value}>
-                                            {option.label}
-                                        </option>
-                                    ))}
-                                </select>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {DISPLAY_TYPE_OPTIONS.map((option) => (
+                                            <SelectItem key={option.value} value={option.value}>
+                                                {option.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
 
-                            {/* Header Category - Only show when displayType is "categories" */}
                             {displayType === "categories" && (
-                                <div>
-                                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                                        Header Category <span className="text-red-500">*</span>
-                                    </label>
-                                    <select
+                                <div className="space-y-2">
+                                    <Label>Header Category <span className="text-destructive">*</span></Label>
+                                    <Select
                                         value={selectedHeaderCategory}
-                                        onChange={(e) => {
-                                            setSelectedHeaderCategory(e.target.value);
-                                            setSelectedCategories([]); // Clear selected categories when header category changes
+                                        onValueChange={(val) => {
+                                            setSelectedHeaderCategory(val);
+                                            setSelectedCategories([]);
                                         }}
-                                        className="w-full px-3 py-2 border border-neutral-300 rounded bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
                                     >
-                                        <option value="">Select a header category</option>
-                                        {headerCategories
-                                            .filter((hc) => hc.status === "Published")
-                                            .map((hc) => (
-                                                <option key={hc._id} value={hc._id}>
-                                                    {hc.name}
-                                                </option>
-                                            ))}
-                                    </select>
-                                    <p className="text-xs text-neutral-500 mt-1">
-                                        Select a header category to filter categories
-                                    </p>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select Header Category" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {headerCategories
+                                                .filter((hc) => hc.status === "Published")
+                                                .map((hc) => (
+                                                    <SelectItem key={hc._id} value={hc._id}>
+                                                        {hc.name}
+                                                    </SelectItem>
+                                                ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             )}
 
-                            {/* Categories - Checkbox List */}
-                            <div>
-                                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                                    Categories
-                                    {displayType === "categories" && (
-                                        <span className="text-red-500 ml-1">*</span>
-                                    )}
-                                </label>
-                                <div className={`border border-neutral-300 rounded max-h-40 overflow-y-auto p-2 ${
-                                    displayType === "categories" && !selectedHeaderCategory ? 'bg-gray-100' : 'bg-white'
-                                }`}>
+                            <div className="space-y-2">
+                                <Label>
+                                    Categories {displayType === "categories" && <span className="text-destructive">*</span>}
+                                </Label>
+                                <div className={`border rounded-md max-h-40 overflow-y-auto p-2 bg-muted/20 ${displayType === "categories" && !selectedHeaderCategory ? 'opacity-50 pointer-events-none' : ''}`}>
                                     {displayType === "categories" && !selectedHeaderCategory ? (
-                                        <p className="text-sm text-neutral-400 p-2">Please select a header category first</p>
+                                        <p className="text-xs text-muted-foreground p-1">Select a header category first</p>
                                     ) : filteredCategories.length === 0 ? (
-                                        <p className="text-sm text-neutral-400 p-2">
-                                            {displayType === "categories"
-                                                ? "No categories found for selected header category"
-                                                : "Loading categories..."}
-                                        </p>
+                                        <p className="text-xs text-muted-foreground p-1">No categories available</p>
                                     ) : (
                                         filteredCategories.map((cat) => (
-                                            <label
-                                                key={cat._id}
-                                                className="flex items-center p-2 hover:bg-neutral-50 rounded cursor-pointer"
-                                            >
-                                                <input
-                                                    type="checkbox"
+                                            <div key={cat._id} className="flex items-center space-x-2 py-1">
+                                                <Checkbox
+                                                    id={`cat-${cat._id}`}
                                                     checked={selectedCategories.includes(cat._id)}
-                                                    onChange={(e) => {
-                                                        if (e.target.checked) {
+                                                    onCheckedChange={(checked) => {
+                                                        if (checked) {
                                                             setSelectedCategories([...selectedCategories, cat._id]);
                                                         } else {
-                                                            setSelectedCategories(
-                                                                selectedCategories.filter((id) => id !== cat._id)
-                                                            );
+                                                            setSelectedCategories(selectedCategories.filter((id) => id !== cat._id));
                                                         }
                                                     }}
-                                                    className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
                                                 />
-                                                <span className="ml-2 text-sm text-neutral-700">{cat.name}</span>
-                                            </label>
+                                                <label
+                                                    htmlFor={`cat-${cat._id}`}
+                                                    className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                                >
+                                                    {cat.name}
+                                                </label>
+                                            </div>
                                         ))
                                     )}
                                 </div>
-                                <p className="text-xs text-neutral-500 mt-1">
-                                    {selectedCategories.length} selected
-                                </p>
+                                <p className="text-[10px] text-muted-foreground text-right">{selectedCategories.length} selected</p>
                             </div>
 
-                            {/* SubCategories - Checkbox List - Only show when displayType is NOT "categories" */}
                             {displayType !== "categories" && (
-                                <div>
-                                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                                        SubCategories
-                                    </label>
-                                    <div className={`border border-neutral-300 rounded max-h-40 overflow-y-auto p-2 ${selectedCategories.length === 0 ? 'bg-gray-100' : 'bg-white'
-                                        }`}>
+                                <div className="space-y-2">
+                                    <Label>SubCategories</Label>
+                                    <div className={`border rounded-md max-h-40 overflow-y-auto p-2 bg-muted/20 ${selectedCategories.length === 0 ? 'opacity-50 pointer-events-none' : ''}`}>
                                         {selectedCategories.length === 0 ? (
-                                            <p className="text-sm text-neutral-400 p-2">Select categories first</p>
+                                            <p className="text-xs text-muted-foreground p-1">Select categories first</p>
                                         ) : subCategories.length === 0 ? (
-                                            <p className="text-sm text-neutral-400 p-2">No subcategories available</p>
+                                            <p className="text-xs text-muted-foreground p-1">No subcategories available</p>
                                         ) : (
                                             subCategories.map((sub) => (
-                                                <label
-                                                    key={sub._id || sub.id}
-                                                    className="flex items-center p-2 hover:bg-neutral-50 rounded cursor-pointer"
-                                                >
-                                                    <input
-                                                        type="checkbox"
+                                                <div key={sub._id || sub.id} className="flex items-center space-x-2 py-1">
+                                                    <Checkbox
+                                                        id={`sub-${sub._id || sub.id}`}
                                                         checked={selectedSubCategories.includes(sub._id || sub.id || '')}
-                                                        onChange={(e) => {
+                                                        onCheckedChange={(checked) => {
                                                             const subId = sub._id || sub.id || '';
-                                                            if (e.target.checked) {
+                                                            if (checked) {
                                                                 setSelectedSubCategories([...selectedSubCategories, subId]);
                                                             } else {
-                                                                setSelectedSubCategories(
-                                                                    selectedSubCategories.filter((id) => id !== subId)
-                                                                );
+                                                                setSelectedSubCategories(selectedSubCategories.filter((id) => id !== subId));
                                                             }
                                                         }}
-                                                        className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
                                                     />
-                                                    <span className="ml-2 text-sm text-neutral-700">{sub.subcategoryName}</span>
-                                                </label>
+                                                    <label
+                                                        htmlFor={`sub-${sub._id || sub.id}`}
+                                                        className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                                    >
+                                                        {sub.subcategoryName}
+                                                    </label>
+                                                </div>
                                             ))
                                         )}
                                     </div>
-                                    <p className="text-xs text-neutral-500 mt-1">
-                                        {selectedSubCategories.length} selected
-                                    </p>
+                                    <p className="text-[10px] text-muted-foreground text-right">{selectedSubCategories.length} selected</p>
                                 </div>
                             )}
 
-                            {/* Columns */}
-                            <div>
-                                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                                    Number of Columns <span className="text-red-500">*</span>
-                                </label>
-                                <select
-                                    value={columns}
-                                    onChange={(e) => setColumns(Number(e.target.value))}
-                                    className="w-full px-3 py-2 border border-neutral-300 rounded bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
-                                >
-                                    {COLUMNS_OPTIONS.map((col) => (
-                                        <option key={col} value={col}>
-                                            {col} Columns
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {/* Limit */}
-                            <div>
-                                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                                    Item Limit <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="number"
-                                    value={limit}
-                                    onChange={(e) => setLimit(Number(e.target.value))}
-                                    min="1"
-                                    max="50"
-                                    className="w-full px-3 py-2 border border-neutral-300 rounded bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
-                                />
-                            </div>
-
-                            {/* Active Status */}
-                            <div>
-                                <label className="flex items-center cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={isActive}
-                                        onChange={(e) => setIsActive(e.target.checked)}
-                                        className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Columns</Label>
+                                    <Select value={columns.toString()} onValueChange={(val) => setColumns(Number(val))}>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {COLUMNS_OPTIONS.map((col) => (
+                                                <SelectItem key={col} value={col.toString()}>
+                                                    {col} Columns
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Limit</Label>
+                                    <Input
+                                        type="number"
+                                        value={limit}
+                                        onChange={(e) => setLimit(Number(e.target.value))}
+                                        min="1"
+                                        max="50"
                                     />
-                                    <span className="ml-2 text-sm font-medium text-neutral-700">
-                                        Active (Show on home page)
-                                    </span>
-                                </label>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-between border rounded-lg p-3 bg-muted/30">
+                                <Label htmlFor="active-mode" className="cursor-pointer">Active Status</Label>
+                                <Switch
+                                    id="active-mode"
+                                    checked={isActive}
+                                    onCheckedChange={setIsActive}
+                                />
                             </div>
                         </div>
 
-                        {/* Action Buttons */}
-                        <div className="mt-6 space-y-2">
-                            <button
+                        <div className="flex gap-3 pt-4">
+                            <Button
                                 onClick={handleSubmit}
                                 disabled={loading}
-                                className={`w-full px-4 py-2 rounded font-medium transition-colors ${loading
-                                    ? "bg-gray-400 cursor-not-allowed text-white"
-                                    : "bg-teal-600 hover:bg-teal-700 text-white"
-                                    }`}
+                                className="flex-1 font-bold"
                             >
-                                {loading
-                                    ? "Saving..."
-                                    : editingId
-                                        ? "Update Section"
-                                        : "Create Section"}
-                            </button>
+                                {loading ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save className="mr-2 h-4 w-4" /> {editingId ? "Update" : "Save"}
+                                    </>
+                                )}
+                            </Button>
+
                             {editingId && (
-                                <button
+                                <Button
+                                    variant="outline"
                                     onClick={resetForm}
-                                    className="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded font-medium transition-colors"
+                                    disabled={loading}
                                 >
                                     Cancel
-                                </button>
+                                </Button>
                             )}
                         </div>
-                    </div>
+                    </CardContent>
+                </Card>
 
-                    {/* Right Section: View Sections Table */}
-                    <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-neutral-200 flex flex-col">
-                        <div className="bg-teal-600 text-white px-6 py-4 rounded-t-lg">
-                            <h2 className="text-lg font-semibold">View Sections</h2>
-                        </div>
+                {/* Right Section: View Sections Table */}
+                <Card className="lg:col-span-2 border-border shadow-sm flex flex-col">
+                    <CardHeader className="bg-muted/50 border-b border-border py-4">
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                                <LayoutTemplate className="h-4 w-4 text-primary" /> Existing Sections
+                            </CardTitle>
 
-                        {/* Controls */}
-                        <div className="p-4 border-b border-neutral-100">
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm text-neutral-600">Show</span>
-                                <input
-                                    type="number"
-                                    value={rowsPerPage}
-                                    onChange={(e) => {
-                                        setRowsPerPage(Number(e.target.value));
-                                        setCurrentPage(1);
-                                    }}
-                                    className="w-16 px-2 py-1.5 border border-neutral-300 rounded text-sm focus:ring-1 focus:ring-teal-500 focus:outline-none"
-                                />
-                                <span className="text-sm text-neutral-600">entries</span>
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                                <div className="relative flex-1 sm:w-64">
+                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search sections..."
+                                        className="pl-9 h-9"
+                                        value={searchTerm}
+                                        onChange={(e) => {
+                                            setSearchTerm(e.target.value);
+                                            setCurrentPage(1);
+                                        }}
+                                    />
+                                </div>
                             </div>
                         </div>
+                    </CardHeader>
+                    <CardContent className="p-0 flex-1">
+                        <div className="p-4">
+                            <DataTable
+                                columns={columnsDef}
+                                data={displayedSections}
+                                loading={loadingSections}
+                                emptyMessage="No home sections found."
+                            />
+                        </div>
+                    </CardContent>
 
-                        {/* Table */}
-                        <div className="overflow-x-auto flex-1">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-neutral-50 text-xs font-bold text-neutral-800 border-b border-neutral-200">
-                                        <th className="p-4">Order</th>
-                                        <th className="p-4">Title</th>
-                                        <th className="p-4">Type</th>
-                                        <th className="p-4">Categories</th>
-                                        <th className="p-4">Columns</th>
-                                        <th className="p-4">Status</th>
-                                        <th className="p-4">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {loadingSections ? (
-                                        <tr>
-                                            <td
-                                                colSpan={7}
-                                                className="p-8 text-center text-neutral-400"
-                                            >
-                                                Loading sections...
-                                            </td>
-                                        </tr>
-                                    ) : displayedSections.length === 0 ? (
-                                        <tr>
-                                            <td
-                                                colSpan={7}
-                                                className="p-8 text-center text-neutral-400"
-                                            >
-                                                No sections found. Create your first section!
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        displayedSections.map((section) => (
-                                            <tr
-                                                key={section._id}
-                                                className="hover:bg-neutral-50 transition-colors text-sm text-neutral-700 border-b border-neutral-200"
-                                            >
-                                                <td className="p-4">{section.order}</td>
-                                                <td className="p-4 font-medium">{section.title}</td>
-                                                <td className="p-4 capitalize">{section.displayType}</td>
-                                                <td className="p-4">
-                                                    {section.categories && section.categories.length > 0
-                                                        ? section.categories.map((c: any) => c.name).join(", ")
-                                                        : "All"}
-                                                </td>
-                                                <td className="p-4">{section.columns}</td>
-                                                <td className="p-4">
-                                                    <span
-                                                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${section.isActive
-                                                            ? "bg-green-100 text-green-800"
-                                                            : "bg-gray-100 text-gray-800"
-                                                            }`}
-                                                    >
-                                                        {section.isActive ? "Active" : "Inactive"}
-                                                    </span>
-                                                </td>
-                                                <td className="p-4">
-                                                    <div className="flex items-center gap-2">
-                                                        <button
-                                                            onClick={() => handleEdit(section)}
-                                                            className="p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-                                                            title="Edit"
-                                                        >
-                                                            <svg
-                                                                width="14"
-                                                                height="14"
-                                                                viewBox="0 0 24 24"
-                                                                fill="none"
-                                                                stroke="currentColor"
-                                                                strokeWidth="2"
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                            >
-                                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                                            </svg>
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDelete(section._id)}
-                                                            className="p-1.5 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
-                                                            title="Delete"
-                                                        >
-                                                            <svg
-                                                                width="14"
-                                                                height="14"
-                                                                viewBox="0 0 24 24"
-                                                                fill="none"
-                                                                stroke="currentColor"
-                                                                strokeWidth="2"
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                            >
-                                                                <polyline points="3 6 5 6 21 6"></polyline>
-                                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                                            </svg>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
+                    {/* Pagination Footer */}
+                    <div className="px-6 py-4 border-t border-border flex items-center justify-between bg-muted/20">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">Show</span>
+                            <Select
+                                value={rowsPerPage.toString()}
+                                onValueChange={(val) => {
+                                    setRowsPerPage(Number(val));
+                                    setCurrentPage(1);
+                                }}
+                            >
+                                <SelectTrigger className="h-8 w-[70px]">
+                                    <SelectValue placeholder="10" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="10">10</SelectItem>
+                                    <SelectItem value="25">25</SelectItem>
+                                    <SelectItem value="50">50</SelectItem>
+                                    <SelectItem value="100">100</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <span className="text-xs text-muted-foreground">entries</span>
                         </div>
 
-                        {/* Pagination Footer */}
-                        <div className="px-4 sm:px-6 py-3 border-t border-neutral-200 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0">
-                            <div className="text-xs sm:text-sm text-neutral-700">
-                                Showing {startIndex + 1} to{" "}
-                                {Math.min(endIndex, sections.length)} of {sections.length}{" "}
-                                entries
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground hidden sm:inline-block mr-2">
+                                Page {currentPage} of {totalPages || 1}
+                            </span>
+                            <div className="flex items-center space-x-1">
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                     disabled={currentPage === 1}
-                                    className={`p-2 border border-teal-600 rounded ${currentPage === 1
-                                        ? "text-neutral-400 cursor-not-allowed bg-neutral-50"
-                                        : "text-teal-600 hover:bg-teal-50"
-                                        }`}
-                                    aria-label="Previous page"
                                 >
-                                    <svg
-                                        width="16"
-                                        height="16"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <path
-                                            d="M15 18L9 12L15 6"
-                                            stroke="currentColor"
-                                            strokeWidth="2"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                        />
-                                    </svg>
-                                </button>
-                                <button className="px-3 py-1.5 border border-teal-600 bg-teal-600 text-white rounded font-medium text-sm">
-                                    {currentPage}
-                                </button>
-                                <button
-                                    onClick={() =>
-                                        setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-                                    }
-                                    disabled={currentPage === totalPages}
-                                    className={`p-2 border border-teal-600 rounded ${currentPage === totalPages
-                                        ? "text-neutral-400 cursor-not-allowed bg-neutral-50"
-                                        : "text-teal-600 hover:bg-teal-50"
-                                        }`}
-                                    aria-label="Next page"
+                                    <span className="sr-only">Previous</span>
+                                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-4 w-4"><path d="M8.84182 3.13514C9.04327 3.32401 9.05348 3.64042 8.86462 3.84188L5.43521 7.49991L8.86462 11.1579C9.05348 11.3594 9.04327 11.6758 8.84182 11.8647C8.64036 12.0535 8.32394 12.0433 8.13508 11.8419L4.38508 7.84188C4.20477 7.64955 4.20477 7.35027 4.38508 7.15794L8.13508 3.15794C8.32394 2.95648 8.64036 2.94628 8.84182 3.13514Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path></svg>
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages || totalPages === 0}
                                 >
-                                    <svg
-                                        width="16"
-                                        height="16"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <path
-                                            d="M9 18L15 12L9 6"
-                                            stroke="currentColor"
-                                            strokeWidth="2"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                        />
-                                    </svg>
-                                </button>
+                                    <span className="sr-only">Next</span>
+                                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-4 w-4"><path d="M6.1584 3.13508C6.35985 2.94621 6.67627 2.95642 6.86514 3.15788L10.6151 7.15788C10.7954 7.3502 10.7954 7.64952 10.6151 7.84184L6.86514 11.8418C6.67627 12.0433 6.35985 12.0535 6.1584 11.8646C5.95694 11.6757 5.94673 11.3593 6.1356 11.1579L9.565 7.49986L6.1356 3.84184C5.94673 3.64038 5.95694 3.32395 6.1584 3.13508Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path></svg>
+                                </Button>
                             </div>
                         </div>
                     </div>
-                </div>
+                </Card>
             </div>
-
-            {/* Footer */}
-            <footer className="text-center py-4 text-sm text-neutral-600 border-t border-neutral-200 bg-white">
-                Copyright Â© 2025. Developed By{" "}
-                <a href="#" className="text-blue-600 hover:underline">
-                    Dhakad Snazzy - 10 Minute App
-                </a>
-            </footer>
-        </div >
+        </div>
     );
 }
-

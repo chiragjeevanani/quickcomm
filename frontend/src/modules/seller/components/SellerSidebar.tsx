@@ -1,10 +1,27 @@
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  LayoutDashboard,
+  ShoppingBag,
+  Layers,
+  Boxes,
+  Wallet,
+  BarChart3,
+  RotateCcw,
+  ChevronDown,
+  X,
+  PlusCircle,
+  Percent,
+  List,
+  PackageCheck
+} from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 interface SubMenuItem {
   label: string;
   path: string;
-  icon: JSX.Element;
+  icon: any;
 }
 
 interface MenuItem {
@@ -12,7 +29,7 @@ interface MenuItem {
   path: string;
   hasSubmenu?: boolean;
   submenuItems?: SubMenuItem[];
-  icon?: JSX.Element;
+  icon: any;
 }
 
 interface SellerSidebarProps {
@@ -20,133 +37,33 @@ interface SellerSidebarProps {
 }
 
 const menuItems: MenuItem[] = [
-  { label: "Dashboard", path: "/seller" },
-  { label: "Orders", path: "/seller/orders" },
-  { label: "Category", path: "/seller/category" },
-  { label: "SubCategory", path: "/seller/subcategory" },
+  { label: "Dashboard", path: "/seller", icon: LayoutDashboard },
+  { label: "Orders", path: "/seller/orders", icon: ShoppingBag },
+  { label: "Category", path: "/seller/category", icon: Layers },
+  { label: "SubCategory", path: "/seller/subcategory", icon: Boxes },
   {
     label: "Product",
     path: "/seller/product",
+    icon: Boxes,
     hasSubmenu: true,
     submenuItems: [
-      {
-        label: "Add new Product",
-        path: "/seller/product/add",
-        icon: (
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-            <line x1="12" y1="22.08" x2="12" y2="12"></line>
-            <line x1="16" y1="12" x2="8" y2="12"></line>
-            <line x1="12" y1="16" x2="12" y2="8"></line>
-          </svg>
-        ),
-      },
-      {
-        label: "Taxes",
-        path: "/seller/product/taxes",
-        icon: (
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round">
-            {/* Three stacked coin piles */}
-            <ellipse cx="12" cy="18" rx="4" ry="2"></ellipse>
-            <ellipse cx="12" cy="14" rx="3.5" ry="1.8"></ellipse>
-            <ellipse cx="12" cy="10" rx="3" ry="1.5"></ellipse>
-            {/* Percentage sign on top pile */}
-            <circle cx="9" cy="9" r="1" fill="currentColor"></circle>
-            <line x1="7" y1="7" x2="11" y2="11" strokeWidth="2"></line>
-            <circle cx="15" cy="11" r="1" fill="currentColor"></circle>
-          </svg>
-        ),
-      },
-      {
-        label: "Product List",
-        path: "/seller/product/list",
-        icon: (
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-            <polyline points="14 2 14 8 20 8"></polyline>
-            {/* Two checkmarks */}
-            <polyline points="9 12 11 14 15 10"></polyline>
-            <polyline points="9 16 11 18 15 14"></polyline>
-          </svg>
-        ),
-      },
-      {
-        label: "Stock Management",
-        path: "/seller/product/stock",
-        icon: (
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-            <line x1="12" y1="22.08" x2="12" y2="12"></line>
-          </svg>
-        ),
-      },
+      { label: "Add new Product", path: "/seller/product/add", icon: PlusCircle },
+      { label: "Taxes", path: "/seller/product/taxes", icon: Percent },
+      { label: "Product List", path: "/seller/product/list", icon: List },
+      { label: "Stock Management", path: "/seller/product/stock", icon: PackageCheck },
     ],
   },
-  {
-    label: "Wallet",
-    path: "/seller/wallet",
-  },
+  { label: "Wallet", path: "/seller/wallet", icon: Wallet },
   {
     label: "Reports",
     path: "/seller/reports",
+    icon: BarChart3,
     hasSubmenu: true,
     submenuItems: [
-      {
-        label: "Sales Report",
-        path: "/seller/reports/sales",
-        icon: (
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-            <line x1="12" y1="22.08" x2="12" y2="12"></line>
-          </svg>
-        ),
-      },
+      { label: "Sales Report", path: "/seller/reports/sales", icon: BarChart3 },
     ],
   },
-  { label: "Return", path: "/seller/return" },
+  { label: "Return", path: "/seller/return", icon: RotateCcw },
 ];
 
 export default function SellerSidebar({ onClose }: SellerSidebarProps) {
@@ -156,9 +73,7 @@ export default function SellerSidebar({ onClose }: SellerSidebarProps) {
 
   const isActive = (path: string) => {
     if (path === "/seller") {
-      return (
-        location.pathname === "/seller" || location.pathname === "/seller/"
-      );
+      return location.pathname === "/seller" || location.pathname === "/seller/";
     }
     return location.pathname.startsWith(path);
   };
@@ -166,144 +81,125 @@ export default function SellerSidebar({ onClose }: SellerSidebarProps) {
   const isSubmenuActive = (submenuItems?: SubMenuItem[]) => {
     if (!submenuItems) return false;
     return submenuItems.some(
-      (item) =>
-        location.pathname === item.path ||
-        location.pathname.startsWith(item.path + "/")
+      (item) => location.pathname === item.path || location.pathname.startsWith(item.path + "/")
     );
   };
 
   const handleNavigation = (path: string) => {
     navigate(path);
-    // Close sidebar on mobile after navigation
-    if (onClose && window.innerWidth < 1024) {
-      onClose();
-    }
+    if (onClose && window.innerWidth < 1024) onClose();
   };
 
   const toggleMenu = (path: string) => {
     setExpandedMenus((prev) => {
       const newSet = new Set(prev);
-      if (newSet.has(path)) {
-        newSet.delete(path);
-      } else {
-        newSet.add(path);
-      }
+      if (newSet.has(path)) newSet.delete(path);
+      else newSet.add(path);
       return newSet;
     });
   };
 
   const isExpanded = (path: string) => {
-    return (
-      expandedMenus.has(path) ||
-      isSubmenuActive(
-        menuItems.find((item) => item.path === path)?.submenuItems
-      )
-    );
+    return expandedMenus.has(path) || isSubmenuActive(menuItems.find((item) => item.path === path)?.submenuItems);
   };
 
   return (
-    <aside className="w-64 bg-teal-700 h-screen flex flex-col">
-      {/* Close button - only show on mobile */}
-      <div className="flex justify-end p-4 border-b border-teal-600 lg:hidden">
-        <button
-          onClick={onClose}
-          className="p-2 text-teal-100 hover:text-white transition-colors"
-          aria-label="Close menu">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg">
-            <path
-              d="M18 6L6 18M6 6L18 18"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+    <aside className="w-64 bg-card border-r border-border h-screen flex flex-col shadow-sm">
+      <div className="flex items-center justify-between p-6 border-b border-border">
+        <Link to="/seller" className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+            <ShoppingBag className="text-primary-foreground w-5 h-5" />
+          </div>
+          <span className="font-bold text-xl text-foreground tracking-tight">Seller Panel</span>
+        </Link>
+        <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground lg:hidden">
+          <X className="w-6 h-6" />
         </button>
       </div>
-      <nav className="flex-1 py-4 sm:py-6 overflow-y-auto">
-        <ul className="space-y-1 px-2 sm:px-4">
-          {menuItems.map((item) => {
+
+      <nav className="flex-1 py-6 overflow-y-auto px-4 custom-scrollbar">
+        <div className="space-y-1">
+          {menuItems.map((item, index) => {
             const expanded = isExpanded(item.path);
-            const active =
-              isActive(item.path) || isSubmenuActive(item.submenuItems);
+            const active = isActive(item.path) || isSubmenuActive(item.submenuItems);
+            const Icon = item.icon;
 
             return (
-              <li key={item.path}>
+              <div key={item.path}>
+                {(index === 4 || index === 6) && <Separator className="my-4 opacity-50 bg-border" />}
                 <button
                   onClick={() => {
-                    if (item.hasSubmenu && item.submenuItems) {
-                      toggleMenu(item.path);
-                    } else {
-                      handleNavigation(item.path);
-                    }
+                    if (item.hasSubmenu) toggleMenu(item.path);
+                    else handleNavigation(item.path);
                   }}
-                  className={`w-full flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 rounded-lg text-left transition-colors ${active
-                    ? "bg-teal-600 text-white"
-                    : "text-teal-100 hover:bg-teal-600/50 hover:text-white"
-                    }`}>
-                  <div className="flex items-center gap-2">
-                    {item.icon && (
-                      <span className="flex-shrink-0">{item.icon}</span>
-                    )}
-                    <span className="text-xs sm:text-sm font-medium">
-                      {item.label}
-                    </span>
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 group ${active
+                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon className={`w-5 h-5 transition-colors ${active ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"}`} />
+                    <span className="text-sm font-semibold">{item.label}</span>
                   </div>
                   {item.hasSubmenu && (
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                      className={`transition-transform ${expanded ? "rotate-180" : ""
-                        } ${active ? "text-white" : "text-teal-200"}`}>
-                      <path
-                        d="M6 9L12 15L18 9"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
+                    <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${expanded ? "rotate-180" : ""} ${active ? "text-primary-foreground" : "text-muted-foreground"}`} />
                   )}
                 </button>
-                {item.hasSubmenu && item.submenuItems && expanded && (
-                  <ul className="mt-1 space-y-1 ml-4">
-                    {item.submenuItems.map((subItem) => {
-                      const subActive =
-                        location.pathname === subItem.path ||
-                        location.pathname.startsWith(subItem.path + "/");
-                      return (
-                        <li key={subItem.path}>
-                          <button
-                            onClick={() => handleNavigation(subItem.path)}
-                            className={`w-full flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-left transition-colors ${subActive
-                              ? "bg-teal-500 text-white"
-                              : "text-teal-100 hover:bg-teal-600/50 hover:text-white"
-                              }`}>
-                            <span className="flex-shrink-0">
-                              {subItem.icon}
-                            </span>
-                            <span className="text-xs sm:text-sm font-medium">
-                              {subItem.label}
-                            </span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </li>
+
+                <AnimatePresence>
+                  {item.hasSubmenu && item.submenuItems && expanded && (
+                    <motion.ul
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="mt-1 space-y-1 ml-4 overflow-hidden border-l border-primary/20 pl-4"
+                    >
+                      {item.submenuItems.map((subItem) => {
+                        const subActive = location.pathname === subItem.path || location.pathname.startsWith(subItem.path + "/");
+                        const SubIcon = subItem.icon;
+                        return (subActive ? (
+                          <li key={subItem.path}>
+                            <button
+                              onClick={() => handleNavigation(subItem.path)}
+                              className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left transition-all text-foreground font-bold bg-primary/20 border-l-2 border-primary"
+                            >
+                              <SubIcon className="w-4 h-4 text-primary" />
+                              <span className="text-[13px]">{subItem.label}</span>
+                            </button>
+                          </li>
+                        ) : (
+                          <li key={subItem.path}>
+                            <button
+                              onClick={() => handleNavigation(subItem.path)}
+                              className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left transition-all text-muted-foreground hover:text-foreground hover:bg-accent"
+                            >
+                              <SubIcon className="w-4 h-4" />
+                              <span className="text-[13px]">{subItem.label}</span>
+                            </button>
+                          </li>
+                        )
+                        );
+                      })}
+                    </motion.ul>
+                  )}
+                </AnimatePresence>
+              </div>
             );
           })}
-        </ul>
+        </div>
       </nav>
+
+      <div className="p-4 border-t border-border">
+        <div className="bg-muted/50 rounded-xl p-3 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold">
+            JD
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-foreground truncate">Store Name</p>
+            <p className="text-xs text-muted-foreground truncate">seller@example.com</p>
+          </div>
+        </div>
+      </div>
     </aside>
   );
 }

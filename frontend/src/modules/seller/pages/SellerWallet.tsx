@@ -1,5 +1,18 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import {
+  Wallet,
+  ArrowUpRight,
+  ArrowDownLeft,
+  History,
+  CreditCard,
+  PieChart,
+  DollarSign,
+  IndianRupee,
+  Loader2,
+  Banknote,
+  Smartphone
+} from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
 import {
   getSellerWalletBalance,
@@ -9,329 +22,309 @@ import {
   getSellerCommissions,
 } from '../../../services/api/sellerWalletService';
 
-type Tab = 'transactions' | 'withdrawals' | 'commissions';
+import { fadeIn, slideUp, staggerContainer } from '../lib/animations';
+import StatCard from '../components/ui/StatCard';
+import DataTable from '../components/ui/DataTable';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function SellerWallet() {
   const { showToast } = useToast();
-  const [activeTab, setActiveTab] = useState<Tab>('transactions');
   const [balance, setBalance] = useState(0);
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [withdrawals, setWithdrawals] = useState<any[]>([]);
-  const [commissions, setCommissions] = useState<any>({ commissions: [], total: 0, paid: 0, pending: 0 });
+  const [transactions, setTransactions] = useState([]);
+  const [withdrawals, setWithdrawals] = useState([]);
+  const [commissions, setCommissions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+
+  // Withdrawal States
+  const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'Bank Transfer' | 'UPI'>('Bank Transfer');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
 
   useEffect(() => {
-    fetchWalletData();
-  }, []);
-
-  const fetchWalletData = async () => {
-    try {
+    const fetchData = async () => {
       setLoading(true);
-      const [balanceRes, transactionsRes, withdrawalsRes, commissionsRes] = await Promise.all([
-        getSellerWalletBalance(),
-        getSellerWalletTransactions(),
-        getSellerWithdrawals(),
-        getSellerCommissions(),
-      ]);
+      try {
+        const [balRes, transRes, withRes, commRes] = await Promise.all([
+          getSellerWalletBalance(),
+          getSellerWalletTransactions(),
+          getSellerWithdrawals(),
+          getSellerCommissions()
+        ]);
 
-      if (balanceRes.success) setBalance(balanceRes.data.balance);
-      if (transactionsRes.success) setTransactions(transactionsRes.data.transactions || []);
-      if (withdrawalsRes.success) setWithdrawals(withdrawalsRes.data || []);
-      if (commissionsRes.success) setCommissions(commissionsRes.data);
-    } catch (error: any) {
-      showToast(error.response?.data?.message || 'Failed to load wallet data', 'error');
-    } finally {
-      setLoading(false);
+        if (balRes.success) setBalance(balRes.data.balance);
+        if (transRes.success) setTransactions(transRes.data.transactions || []);
+        if (withRes.success) setWithdrawals(Array.isArray(withRes.data) ? withRes.data : []);
+        if (commRes.success) setCommissions(commRes.data.commissions || []);
+      } catch (err) {
+        showToast('Error loading wallet data', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [showToast]);
+
+  const handleWithdraw = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amount = parseFloat(withdrawAmount);
+
+    if (isNaN(amount) || amount <= 0) {
+      showToast('Please enter a valid amount', 'error');
+      return;
     }
-  };
 
-  const handleWithdrawRequest = async () => {
+    if (amount > balance) {
+      showToast('Insufficient balance', 'error');
+      return;
+    }
+
+    setWithdrawing(true);
     try {
-      const amount = parseFloat(withdrawAmount);
-      if (isNaN(amount) || amount <= 0) {
-        showToast('Please enter a valid amount', 'error');
-        return;
-      }
-
-      if (amount > balance) {
-        showToast('Insufficient balance', 'error');
-        return;
-      }
-
-      setIsSubmitting(true);
-      const response = await requestSellerWithdrawal(amount, paymentMethod);
-      if (response.success) {
+      const res = await requestSellerWithdrawal(amount, paymentMethod);
+      if (res.success) {
         showToast('Withdrawal request submitted successfully', 'success');
-        setShowWithdrawModal(false);
+        setIsWithdrawDialogOpen(false);
         setWithdrawAmount('');
-        fetchWalletData();
+        // Refresh balance and withdrawals
+        const [balRes, withRes] = await Promise.all([
+          getSellerWalletBalance(),
+          getSellerWithdrawals()
+        ]);
+        if (balRes.success) setBalance(balRes.data.balance);
+        if (withRes.success) setWithdrawals(Array.isArray(withRes.data) ? withRes.data : []);
       }
-    } catch (error: any) {
-      showToast(error.response?.data?.message || 'Failed to request withdrawal', 'error');
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to submit withdrawal request', 'error');
     } finally {
-      setIsSubmitting(false);
+      setWithdrawing(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
+  const transactionColumns = [
+    { header: "ID", accessorKey: "id" },
+    { header: "Reference", accessorKey: "reference" },
+    {
+      header: "Type",
+      accessorKey: "type",
+      cell: (t: any) => (
+        <Badge variant="outline" className={t.type === 'credit' ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' : 'text-orange-500 bg-orange-500/10 border-orange-500/20'}>
+          {t.type.toUpperCase()}
+        </Badge>
+      )
+    },
+    { header: "Amount", accessorKey: "amount", cell: (t: any) => <span className={`font-bold ${t.type === 'credit' ? 'text-emerald-500' : 'text-foreground'}`}>{t.type === 'credit' ? '+' : '-'}₹{t.amount}</span> },
+    { header: "Date", accessorKey: "date" },
+  ];
+
+  const withdrawalColumns = [
+    { header: "ID", accessorKey: "id" },
+    { header: "Amount", accessorKey: "amount", cell: (w: any) => <span className="font-bold text-foreground">₹{w.amount}</span> },
+    {
+      header: "Status",
+      accessorKey: "status",
+      cell: (w: any) => (
+        <Badge className={w.status === 'Completed' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-orange-500/10 text-orange-500'}>
+          {w.status}
+        </Badge>
+      )
+    },
+    { header: "Date", accessorKey: "date" },
+  ];
+
+  const commissionColumns = [
+    { header: "Order ID", accessorKey: "orderId" },
+    { header: "Commission", accessorKey: "amount", cell: (c: any) => <span className="font-bold">₹{c.amount}</span> },
+    { header: "Date", accessorKey: "date" },
+  ];
+
+  const totalEarnings = commissions.reduce((acc: number, curr: any) => acc + (curr.amount || 0), 0);
+  const pendingSettlements = withdrawals
+    .filter((w: any) => w.status === 'Pending')
+    .reduce((acc: number, curr: any) => acc + (curr.amount || 0), 0);
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10">
-        <div className="px-4 py-3">
-          <h1 className="text-xl font-bold text-gray-900">Wallet</h1>
+    <div className="space-y-8">
+      <motion.div variants={fadeIn} initial="initial" animate="animate" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Wallet & Earnings</h1>
+          <p className="text-muted-foreground mt-1">Manage your funds and tracks withdrawals</p>
         </div>
-      </div>
-
-      {/* Balance Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="m-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg"
-      >
-        <p className="text-sm opacity-90 mb-1">Wallet Balance</p>
-        <h1 className="text-4xl font-bold mb-4">₹{balance.toFixed(2)}</h1>
-        <button
-          onClick={() => setShowWithdrawModal(true)}
-          className="bg-white text-blue-600 px-6 py-2.5 rounded-lg font-semibold hover:bg-blue-50 transition-all shadow-md"
+        <Button
+          onClick={() => setIsWithdrawDialogOpen(true)}
+          className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20 gap-2 font-bold uppercase tracking-tighter"
         >
-          Request Withdrawal
-        </button>
+          <ArrowUpRight className="w-4 h-4" /> Withdraw Funds
+        </Button>
       </motion.div>
 
+      <motion.div
+        variants={staggerContainer}
+        initial="initial"
+        animate="animate"
+        className="grid grid-cols-1 md:grid-cols-3 gap-6"
+      >
+        <StatCard
+          title="Current Balance"
+          value={`₹${balance.toLocaleString()}`}
+          icon={<Wallet className="w-5 h-5" />}
+          delay={0.1}
+        />
+        <StatCard
+          title="Total Earnings"
+          value={`₹${totalEarnings.toLocaleString()}`}
+          icon={<DollarSign className="w-5 h-5" />}
+          trend={{ value: 15, isUp: true }}
+          delay={0.2}
+        />
+        <StatCard
+          title="Pending Settlements"
+          value={`₹${pendingSettlements.toLocaleString()}`}
+          icon={<CreditCard className="w-5 h-5" />}
+          delay={0.3}
+        />
+      </motion.div>
 
-      {/* Tabs */}
-      <div className="bg-white mx-4 rounded-xl shadow-sm overflow-hidden">
-        <div className="flex border-b">
-          <button
-            onClick={() => setActiveTab('transactions')}
-            className={`flex-1 py-3 text-sm font-semibold transition-colors ${activeTab === 'transactions'
-              ? 'text-blue-600 border-b-2 border-blue-600'
-              : 'text-gray-600'
-              }`}
-          >
-            Transactions
-          </button>
-          <button
-            onClick={() => setActiveTab('withdrawals')}
-            className={`flex-1 py-3 text-sm font-semibold transition-colors ${activeTab === 'withdrawals'
-              ? 'text-blue-600 border-b-2 border-blue-600'
-              : 'text-gray-600'
-              }`}
-          >
-            Withdrawals
-          </button>
-          <button
-            onClick={() => setActiveTab('commissions')}
-            className={`flex-1 py-3 text-sm font-semibold transition-colors ${activeTab === 'commissions'
-              ? 'text-blue-600 border-b-2 border-blue-600'
-              : 'text-gray-600'
-              }`}
-          >
-            Commissions
-          </button>
-        </div>
+      <Tabs defaultValue="transactions" className="w-full">
+        <TabsList className="bg-muted/50 border border-border p-1 rounded-xl mb-6">
+          <TabsTrigger value="transactions" className="gap-2 px-6 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm">
+            <History className="w-4 h-4" /> Transactions
+          </TabsTrigger>
+          <TabsTrigger value="withdrawals" className="gap-2 px-6 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm">
+            <ArrowDownLeft className="w-4 h-4" /> Withdrawals
+          </TabsTrigger>
+          <TabsTrigger value="commissions" className="gap-2 px-6 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm">
+            <PieChart className="w-4 h-4" /> Commissions
+          </TabsTrigger>
+        </TabsList>
 
-        <div className="p-4">
-          {/* Transactions Tab */}
-          {activeTab === 'transactions' && (
-            <div className="space-y-3">
-              {(() => {
-                // Combine transactions and pending commissions
-                const allItems = [
-                  ...transactions.map((t: any) => ({ ...t, source: 'transaction' })),
-                  ...(commissions.commissions || [])
-                    .filter((c: any) => c.status === 'Pending')
-                    .map((c: any) => ({
-                      _id: c.id || c._id,
-                      description: `Order #${c.orderId?.substring(0, 8) || 'Unknown'} (Pending)`,
-                      amount: c.orderAmount - c.amount, // Calculate Net Earning: Order Amount - Commission Fee
-                      type: 'Credit',
-                      createdAt: c.createdAt,
-                      status: 'Pending',
-                      source: 'commission'
-                    }))
-                ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        <TabsContent value="transactions" className="mt-0">
+          <Card className="border-border bg-card shadow-sm">
+            <DataTable columns={transactionColumns} data={transactions} loading={loading} />
+          </Card>
+        </TabsContent>
 
-                if (allItems.length === 0) {
-                  return <p className="text-center text-gray-500 py-8">No transactions yet</p>;
-                }
+        <TabsContent value="withdrawals" className="mt-0">
+          <Card className="border-border bg-card shadow-sm">
+            <DataTable columns={withdrawalColumns} data={withdrawals} loading={loading} />
+          </Card>
+        </TabsContent>
 
-                return allItems.map((item: any) => (
-                  <div key={item._id} className="flex justify-between items-start p-3 bg-gray-50 rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-gray-900">{item.description}</p>
-                        {item.status === 'Pending' && (
-                          <span className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full font-medium">
-                            Pending
-                          </span>
-                        )}
-                        {item.status === 'Completed' && (
-                          <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full font-medium">
-                            Success
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {new Date(item.createdAt).toLocaleDateString('en-IN', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </p>
-                    </div>
-                    <p className={`font-bold text-lg ${item.type === 'Credit' ? 'text-green-600' : 'text-red-600'} ${item.status === 'Pending' ? 'opacity-60' : ''}`}>
-                      {item.type === 'Credit' ? '+' : '-'}₹{item.amount.toFixed(2)}
-                    </p>
-                  </div>
-                ));
-              })()}
-            </div>
-          )}
+        <TabsContent value="commissions" className="mt-0">
+          <Card className="border-border bg-card shadow-sm">
+            <DataTable columns={commissionColumns} data={commissions} loading={loading} />
+          </Card>
+        </TabsContent>
+      </Tabs>
 
-          {/* Withdrawals Tab */}
-          {activeTab === 'withdrawals' && (
-            <div className="space-y-3">
-              {withdrawals.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">No withdrawal requests yet</p>
-              ) : (
-                withdrawals.map((withdrawal: any) => (
-                  <div key={withdrawal._id} className="p-3 bg-gray-50 rounded-lg">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <p className="font-bold text-gray-900">₹{withdrawal.amount.toFixed(2)}</p>
-                        <p className="text-xs text-gray-600">{withdrawal.paymentMethod}</p>
-                      </div>
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-semibold ${withdrawal.status === 'Completed'
-                          ? 'bg-green-100 text-green-700'
-                          : withdrawal.status === 'Approved'
-                            ? 'bg-blue-100 text-blue-700'
-                            : withdrawal.status === 'Rejected'
-                              ? 'bg-red-100 text-red-700'
-                              : 'bg-yellow-100 text-yellow-700'
-                          }`}
-                      >
-                        {withdrawal.status}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      {new Date(withdrawal.createdAt).toLocaleDateString('en-IN', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
-                    </p>
-                    {withdrawal.remarks && (
-                      <p className="text-xs text-gray-600 mt-2 italic">{withdrawal.remarks}</p>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-
-          {/* Commissions Tab */}
-          {activeTab === 'commissions' && (
-            <div className="space-y-3">
-              {commissions.commissions?.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">No commissions yet</p>
-              ) : (
-                commissions.commissions?.map((comm: any) => (
-                  <div key={comm.id} className="p-3 bg-gray-50 rounded-lg">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <p className="font-medium text-gray-900">Order Commission</p>
-                        <p className="text-xs text-gray-600">Rate: {comm.rate}%</p>
-                      </div>
-                      <p className="font-bold text-green-600">₹{comm.amount.toFixed(2)}</p>
-                    </div>
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>Order Amount: ₹{comm.orderAmount.toFixed(2)}</span>
-                      <span>{new Date(comm.createdAt).toLocaleDateString('en-IN')}</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Withdrawal Modal */}
-      {
-        showWithdrawModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-white rounded-2xl p-6 max-w-md w-full"
-            >
-              <h2 className="text-2xl font-bold mb-4">Request Withdrawal</h2>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Amount</label>
+      {/* Withdrawal Dialog */}
+      <Dialog open={isWithdrawDialogOpen} onOpenChange={setIsWithdrawDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] border-border bg-card">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-foreground">Withdraw Funds</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Submit a request to withdraw your earnings.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleWithdraw} className="space-y-6 pt-4">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="amount" className="text-[10px] font-bold uppercase tracking-tighter text-muted-foreground ml-1">
+                  Amount to Withdraw (₹)
+                </Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
-                  <input
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                    <IndianRupee className="w-4 h-4 text-primary" />
+                  </div>
+                  <Input
+                    id="amount"
                     type="number"
+                    placeholder="0.00"
                     value={withdrawAmount}
                     onChange={(e) => setWithdrawAmount(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg pl-8 pr-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter amount"
-                    min="0"
-                    step="0.01"
+                    className="pl-10 h-12 text-lg font-bold border-border bg-background text-foreground focus:ring-primary"
+                    required
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Available: ₹{balance.toFixed(2)}</p>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter ml-1">
+                  Available Balance: <span className="text-primary">₹{balance.toLocaleString()}</span>
+                </p>
               </div>
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
-                <select
+
+              <div className="space-y-2">
+                <Label htmlFor="method" className="text-[10px] font-bold uppercase tracking-tighter text-muted-foreground ml-1">
+                  Payment Method
+                </Label>
+                <Select
                   value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value as any)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onValueChange={(value: any) => setPaymentMethod(value)}
                 >
-                  <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="UPI">UPI</option>
-                </select>
+                  <SelectTrigger id="method" className="h-12 border-border bg-background text-foreground font-bold">
+                    <SelectValue placeholder="Select method" />
+                  </SelectTrigger>
+                  <SelectContent className="border-border bg-card">
+                    <SelectItem value="Bank Transfer" className="font-bold">
+                      <div className="flex items-center gap-2">
+                        <Banknote className="w-4 h-4 text-primary" />
+                        <span>Bank Transfer</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="UPI" className="font-bold">
+                      <div className="flex items-center gap-2">
+                        <Smartphone className="w-4 h-4 text-primary" />
+                        <span>UPI</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowWithdrawModal(false);
-                    setWithdrawAmount('');
-                  }}
-                  className="flex-1 border border-gray-300 rounded-lg py-2.5 font-semibold hover:bg-gray-50 transition"
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleWithdrawRequest}
-                  className="flex-1 bg-blue-600 text-white rounded-lg py-2.5 font-semibold hover:bg-blue-700 transition disabled:opacity-50"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? 'Submitting...' : 'Submit Request'}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )
-      }
-    </div >
+            </div>
+
+            <DialogFooter className="pt-4">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setIsWithdrawDialogOpen(false)}
+                className="text-muted-foreground font-bold uppercase tracking-tighter"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={withdrawing || !withdrawAmount || parseFloat(withdrawAmount) <= 0}
+                className="bg-primary text-primary-foreground hover:bg-primary/90 min-w-[140px] font-bold uppercase tracking-tighter shadow-lg shadow-primary/20"
+              >
+                {withdrawing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  'Request Withdrawal'
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

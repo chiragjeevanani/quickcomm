@@ -16,9 +16,12 @@ export interface WalletTransaction {
   _id: string; // Mongoose ID
   type: string; // Credit/Debit
   userType: string;
+  userName: string; // Populated name
+  userId: string; // ID of the user
   amount: number;
   description: string;
   status: string;
+  reference?: string;
   createdAt: string;
   relatedOrder?: { orderNumber: string };
 }
@@ -126,6 +129,19 @@ export const getSellerTransactions = async (
   const response = await api.get<ApiResponse<any[]>>(
     `/admin/wallet/seller/${sellerId}`,
     { params }
+  );
+  return response.data;
+};
+
+/**
+ * Add Fund Transfer for Delivery Boy (Credit/Debit)
+ */
+export const addFundTransfer = async (
+  data: { deliveryBoyId: string; amount: number; type: 'Credit' | 'Debit'; message: string }
+): Promise<ApiResponse<any>> => {
+  const response = await api.post<ApiResponse<any>>(
+    "/admin/delivery/fund-transfer",
+    data
   );
   return response.data;
 };

@@ -6,7 +6,7 @@
   height: 100vh;
   /* Support for modern mobile browsers with dynamic viewport height */
   height: 100dvh;
-  background-color: #ffffff;
+  background-color: hsl(var(--background));
   display: flex;
   justify-content: center;
   align-items: center;

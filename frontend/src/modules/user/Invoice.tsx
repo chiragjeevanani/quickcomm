@@ -1,7 +1,7 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import Button from "../../components/ui/button";
+import { Button } from "../../components/ui/button";
 import { useOrders } from "../../hooks/useOrders";
 
 const ArrowLeftIcon = ({ className }: { className?: string }) => (

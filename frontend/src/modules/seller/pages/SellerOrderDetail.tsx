@@ -1,15 +1,54 @@
 ﻿import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { getOrderById, updateOrderStatus, OrderDetail } from '../../../services/api/orderService';
+import { motion } from 'framer-motion';
+import {
+  ChevronLeft,
+  Download,
+  Printer,
+  Clock,
+  Calendar,
+  Hash,
+  Package,
+  MapPin,
+  CreditCard,
+  CheckCircle2,
+  XCircle,
+  Truck,
+  ArrowRight,
+  FileText,
+  User,
+  Phone,
+  Mail,
+  ExternalLink
+} from 'lucide-react';
 import jsPDF from 'jspdf';
+import { getOrderById, updateOrderStatus, OrderDetail } from '../../../services/api/orderService';
+import { useToast } from "@/context/ToastContext";
+import { fadeIn, slideUp } from "../lib/animations";
+
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export default function SellerOrderDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [orderDetail, setOrderDetail] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
-  const [orderStatus, setOrderStatus] = useState<string>('Out For Delivery');
+  const [orderStatus, setOrderStatus] = useState<string>('');
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Fetch order detail from API
   useEffect(() => {
@@ -40,73 +79,39 @@ export default function SellerOrderDetail() {
   const handleStatusUpdate = async (newStatus: string) => {
     if (!orderDetail) return;
 
+    setIsUpdating(true);
     try {
       const response = await updateOrderStatus(orderDetail.id, { status: newStatus as any });
       if (response.success) {
         setOrderStatus(newStatus);
         setOrderDetail({ ...orderDetail, status: newStatus as any });
+        showToast(`Order status updated to ${newStatus}`, "success");
       } else {
-        alert('Failed to update order status');
+        showToast(response.message || 'Failed to update order status', "error");
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to update order status');
+      showToast(err.response?.data?.message || 'Failed to update order status', "error");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="text-neutral-500">Loading order details...</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-xl font-bold text-neutral-900 mb-4">Error</h2>
-          <p className="text-red-600 mb-4">{error}</p>
-          <button
-            onClick={() => navigate('/seller/orders')}
-            className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-lg transition-colors"
-          >
-            Back to Orders
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!orderDetail) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-xl font-bold text-neutral-900 mb-4">Order Not Found</h2>
-          <button
-            onClick={() => navigate('/seller/orders')}
-            className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-lg transition-colors"
-          >
-            Back to Orders
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString + 'T00:00:00');
-    const day = date.getDate();
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const month = monthNames[date.getMonth()];
-    const year = date.getFullYear();
-    let suffix = 'th';
-    if (day === 1 || day === 21 || day === 31) suffix = 'st';
-    else if (day === 2 || day === 22) suffix = 'nd';
-    else if (day === 3 || day === 23) suffix = 'rd';
-    return `${day}${suffix} ${month}, ${year}`;
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString + 'T00:00:00');
+      const day = date.getDate();
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const month = monthNames[date.getMonth()];
+      const year = date.getFullYear();
+      let suffix = 'th';
+      if (day === 1 || day === 21 || day === 31) suffix = 'st';
+      else if (day === 2 || day === 22) suffix = 'nd';
+      else if (day === 3 || day === 23) suffix = 'rd';
+      return `${day}${suffix} ${month}, ${year}`;
+    } catch (e) {
+      return dateString;
+    }
   };
 
   const handleExportPDF = () => {
@@ -119,7 +124,6 @@ export default function SellerOrderDetail() {
     const contentWidth = pageWidth - 2 * margin;
     let yPos = margin;
 
-    // Helper function to add a new page if needed
     const checkPageBreak = (requiredHeight: number) => {
       if (yPos + requiredHeight > pageHeight - margin) {
         doc.addPage();
@@ -129,8 +133,7 @@ export default function SellerOrderDetail() {
       return false;
     };
 
-    // Header - Company Info
-    doc.setFillColor(22, 163, 74); // Green color
+    doc.setFillColor(13, 148, 136); // Teal-600
     doc.rect(margin, yPos, contentWidth, 15, 'F');
 
     doc.setTextColor(255, 255, 255);
@@ -140,7 +143,6 @@ export default function SellerOrderDetail() {
 
     yPos += 20;
 
-    // Company Details
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
@@ -153,12 +155,9 @@ export default function SellerOrderDetail() {
     yPos += 6;
     doc.text('Phone: 8956656429', margin, yPos);
     yPos += 6;
-    doc.text('Email: info@Dhakad Snazzy.com', margin, yPos);
-    yPos += 6;
-    doc.text('Website: https://Dhakad Snazzy.com', margin, yPos);
+    doc.text('Email: info@dhakadsnazzy.com', margin, yPos);
     yPos += 12;
 
-    // Invoice Details (Right aligned)
     const rightX = pageWidth - margin;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
@@ -172,43 +171,28 @@ export default function SellerOrderDetail() {
     doc.text(`Delivery Date: ${formatDate(orderDetail.deliveryDate)}`, rightX, yPos - 8, { align: 'right' });
     doc.text(`Time Slot: ${orderDetail.timeSlot}`, rightX, yPos - 2, { align: 'right' });
 
-    // Status badge
-    const statusWidth = doc.getTextWidth(orderStatus) + 8;
-    doc.setFillColor(59, 130, 246); // Blue for status
-    doc.roundedRect(rightX - statusWidth, yPos + 2, statusWidth, 6, 1, 1, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(9);
-    doc.text(orderStatus, rightX - statusWidth / 2, yPos + 5.5, { align: 'center' });
-
-    yPos += 15;
-    doc.setTextColor(0, 0, 0);
-
-    // Draw a line
+    yPos += 5;
     doc.setDrawColor(200, 200, 200);
     doc.line(margin, yPos, pageWidth - margin, yPos);
     yPos += 10;
 
-    // Table Header
-    checkPageBreak(20);
     doc.setFillColor(245, 245, 245);
     doc.rect(margin, yPos, contentWidth, 10, 'F');
 
     const colWidths = [
-      contentWidth * 0.08,  // Sr. No.
-      contentWidth * 0.40,  // Product
-      contentWidth * 0.15,  // Price
-      contentWidth * 0.15,  // Tax
-      contentWidth * 0.10,  // Qty
-      contentWidth * 0.12,  // Subtotal
+      contentWidth * 0.08,
+      contentWidth * 0.40,
+      contentWidth * 0.15,
+      contentWidth * 0.15,
+      contentWidth * 0.10,
+      contentWidth * 0.12,
     ];
 
     let xPos = margin;
-    const headers = ['Sr. No.', 'Product', 'Price', 'Tax ₹ (%)', 'Qty', 'Subtotal'];
+    const headers = ['Sr.', 'Product', 'Price', 'Tax ₹ (%)', 'Qty', 'Subtotal'];
 
     doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0);
-
     headers.forEach((header, index) => {
       doc.text(header, xPos + 2, yPos + 7);
       xPos += colWidths[index];
@@ -216,14 +200,9 @@ export default function SellerOrderDetail() {
 
     yPos += 12;
 
-    // Table Rows
     orderDetail.items.forEach((item) => {
       checkPageBreak(15);
-
-      doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(0, 0, 0);
-
       xPos = margin;
       const rowData = [
         item.srNo.toString(),
@@ -235,11 +214,9 @@ export default function SellerOrderDetail() {
       ];
 
       rowData.forEach((data, index) => {
-        // Truncate long text
         const maxWidth = colWidths[index] - 4;
         let text = data;
         if (doc.getTextWidth(text) > maxWidth && index === 1) {
-          // Truncate product name if too long
           while (doc.getTextWidth(text + '...') > maxWidth && text.length > 0) {
             text = text.slice(0, -1);
           }
@@ -249,14 +226,11 @@ export default function SellerOrderDetail() {
         xPos += colWidths[index];
       });
 
-      // Draw row separator
       doc.setDrawColor(220, 220, 220);
       doc.line(margin, yPos + 8, pageWidth - margin, yPos + 8);
-
       yPos += 10;
     });
 
-    // Calculate totals
     const totalSubtotal = orderDetail.items.reduce((sum, item) => sum + item.subtotal, 0);
     const totalTax = orderDetail.items.reduce((sum, item) => sum + item.tax, 0);
     const grandTotal = totalSubtotal + totalTax;
@@ -264,13 +238,7 @@ export default function SellerOrderDetail() {
     yPos += 5;
     checkPageBreak(30);
 
-    // Totals Section
-    doc.setDrawColor(200, 200, 200);
-    doc.line(margin, yPos, pageWidth - margin, yPos);
-    yPos += 8;
-
     doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
     doc.text('Subtotal:', pageWidth - margin - 60, yPos, { align: 'right' });
     doc.text(`₹${totalSubtotal.toFixed(2)}`, pageWidth - margin, yPos, { align: 'right' });
     yPos += 7;
@@ -283,254 +251,381 @@ export default function SellerOrderDetail() {
     doc.setFontSize(12);
     doc.text('Grand Total:', pageWidth - margin - 60, yPos, { align: 'right' });
     doc.text(`₹${grandTotal.toFixed(2)}`, pageWidth - margin, yPos, { align: 'right' });
-    yPos += 15;
 
-    // Footer
-    checkPageBreak(20);
+    yPos = pageHeight - 30;
     doc.setDrawColor(200, 200, 200);
-    doc.setLineWidth(0.5);
     doc.line(margin, yPos, pageWidth - margin, yPos);
     yPos += 8;
-
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 100, 100);
-    doc.text('Bill Generated by Dhakad Snazzy - 10 Minute App', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 8;
+    doc.text('Bill Generated by Dhakad Snazzy Seller Panel', pageWidth / 2, yPos, { align: 'center' });
 
-    doc.setFontSize(8);
-    doc.text('Copyright Â© 2025. Developed By Dhakad Snazzy - 10 Minute App', pageWidth / 2, yPos, { align: 'center' });
-
-    // Save the PDF
-    const fileName = `Invoice_${orderDetail.invoiceNumber}_${orderDetail.id}.pdf`;
-    doc.save(fileName);
+    doc.save(`Invoice_${orderDetail.invoiceNumber}.pdf`);
+    showToast("Invoice downloaded successfully", "success");
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const getStatusBadgeClass = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Accepted':
-        return 'bg-blue-100 text-blue-800 border border-blue-400';
+        return <Badge className="bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 border-none px-3 py-1">Accepted</Badge>;
       case 'On the way':
-        return 'bg-purple-100 text-purple-800 border border-purple-400';
+        return <Badge className="bg-purple-500/10 text-purple-500 hover:bg-purple-500/20 border-none px-3 py-1">On the way</Badge>;
       case 'Delivered':
-        return 'bg-green-100 text-green-800 border border-green-400';
+        return <Badge className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-none px-3 py-1">Delivered</Badge>;
       case 'Cancelled':
-        return 'bg-red-100 text-red-800 border border-red-400';
-      case 'Out For Delivery':
-        return 'bg-blue-600 text-white border border-blue-700';
+      case 'Rejected':
+        return <Badge className="bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 border-none px-3 py-1">{status}</Badge>;
       case 'Received':
-        return 'bg-blue-50 text-blue-600 border border-blue-200';
-      case 'Payment Pending':
-        return 'bg-orange-50 text-orange-600 border border-orange-200';
+        return <Badge className="bg-primary/10 text-primary hover:bg-primary/20 border-none px-3 py-1">New Order</Badge>;
       default:
-        return 'bg-gray-50 text-gray-600 border border-gray-200';
+        return <Badge className="bg-muted text-muted-foreground hover:bg-muted border-none px-3 py-1">{status}</Badge>;
     }
   };
 
-  const formatUnit = (unit: string, qty: number) => {
-    if (!unit || unit === 'N/A') return 'N/A';
+  const totalSubtotal = orderDetail?.items.reduce((sum, item) => sum + item.subtotal, 0) || 0;
+  const totalTax = orderDetail?.items.reduce((sum, item) => sum + item.tax, 0) || 0;
+  const grandTotal = totalSubtotal + totalTax;
 
-    // improved regex to handle decimals and various spacing
-    const match = unit.match(/^(\d+(?:\.\d+)?)\s*([a-zA-Z]+)$/);
-    if (match) {
-      const val = parseFloat(match[1]);
-      const u = match[2];
-      // check if val is a valid number
-      if (!isNaN(val)) {
-        const total = val * qty;
-        // Format to remove trailing zeros if integer (e.g. 1.0 -> 1)
-        return `${parseFloat(total.toFixed(2))}${u}`;
-      }
-    }
-    return `${unit} x ${qty}`;
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-muted-foreground font-medium animate-pulse">Loading order details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !orderDetail) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center px-4">
+        <div className="w-16 h-16 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mb-4">
+          <XCircle className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-bold text-foreground mb-2">Error Loading Order</h2>
+        <p className="text-muted-foreground mb-6 max-w-md">{error || "The order you're looking for was not found."}</p>
+        <Button onClick={() => navigate('/seller/orders')} className="bg-primary text-primary-foreground hover:bg-primary/90">
+          <ChevronLeft className="w-4 h-4 mr-2" /> Back to Orders
+        </Button>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-neutral-50 pb-8">
-      {/* Order Action Section */}
-      <div className="bg-white mb-6 rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
-        <div className="bg-teal-600 text-white px-4 sm:px-6 py-3">
-          <h2 className="text-base sm:text-lg font-semibold">Order Action Section</h2>
-        </div>
-        <div className="bg-neutral-50 px-4 sm:px-6 py-4">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-            <div className="flex-1 w-full sm:w-auto">
-              {orderStatus === 'Received' ? (
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => handleStatusUpdate('Accepted')}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors font-medium shadow-sm"
-                  >
-                    Accept Order
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (window.confirm('Are you sure you want to reject this order? This cannot be undone.')) {
-                        handleStatusUpdate('Rejected');
-                      }
-                    }}
-                    className="flex-1 bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition-colors font-medium shadow-sm"
-                  >
-                    Reject Order
-                  </button>
-                </div>
-              ) : (
-                <select
-                  value={orderStatus}
-                  onChange={(e) => handleStatusUpdate(e.target.value)}
-                  className="w-full sm:w-64 px-4 py-2 border border-neutral-300 rounded-lg text-sm text-neutral-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                  disabled={orderStatus === 'Rejected' || orderStatus === 'Cancelled' || orderStatus === 'Delivered'}
-                >
-                  <option value="Accepted">Accepted</option>
-                  <option value="On the way">On the way</option>
-                  <option value="Delivered">Delivered</option>
-                  <option value="Cancelled">Cancelled</option>
-                  {orderStatus === 'Rejected' && <option value="Rejected">Rejected</option>}
-                </select>
-              )}
+    <div className="max-w-6xl mx-auto space-y-6">
+      {/* Header Actions */}
+      <motion.div variants={fadeIn} initial="initial" animate="animate" className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="icon" onClick={() => navigate('/seller/orders')} className="rounded-full shadow-sm border-border bg-card">
+            <ChevronLeft className="w-4 h-4 text-foreground" />
+          </Button>
+          <div>
+            <div className="flex items-center gap-2 mb-0.5">
+              <h1 className="text-2xl font-bold text-foreground">Order Details</h1>
+              <Badge variant="outline" className="font-mono text-[10px] border-border text-muted-foreground uppercase">#{orderDetail.id.slice(-8)}</Badge>
             </div>
-            <button
-              onClick={handleExportPDF}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-                <polyline points="10 9 9 9 8 9" />
-              </svg>
-              Export Invoice PDF
-            </button>
-            <button
-              onClick={handlePrint}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="6 9 6 2 18 2 18 9" />
-                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                <rect x="6" y="14" width="12" height="8" />
-              </svg>
-              Print Invoice
-            </button>
+            <p className="text-xs font-bold uppercase tracking-tighter text-muted-foreground">Placed on {formatDate(orderDetail.orderDate)} at {orderDetail.timeSlot}</p>
           </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={() => window.print()} className="border-border bg-card text-foreground hover:bg-accent">
+            <Printer className="w-4 h-4 mr-2" />
+            Print
+          </Button>
+          <Button onClick={handleExportPDF} className="bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90">
+            <Download className="w-4 h-4 mr-2" />
+            Download Invoice
+          </Button>
+        </div>
+      </motion.div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Order Info & Items */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Order Status Bar */}
+          <motion.div variants={slideUp} initial="initial" animate="animate">
+            <Card className="border-border bg-card overflow-hidden">
+              <div className="bg-muted/30 px-6 py-4 border-b border-border flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Clock className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-foreground">Order Lifecycle</h3>
+                    <p className="text-[10px] font-bold uppercase tracking-tighter text-muted-foreground">Current Status: {orderStatus}</p>
+                  </div>
+                </div>
+                {getStatusBadge(orderStatus)}
+              </div>
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row items-center gap-4">
+                  <div className="flex-1 w-full">
+                    <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Update Status</Label>
+                    <div className="flex items-center gap-3">
+                      {orderStatus === 'Received' ? (
+                        <div className="flex gap-3 w-full">
+                          <Button
+                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-10 shadow-lg shadow-emerald-500/10"
+                            onClick={() => handleStatusUpdate('Accepted')}
+                            disabled={isUpdating}
+                          >
+                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                            Accept Order
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            className="flex-1 h-10 shadow-lg shadow-destructive/10"
+                            onClick={() => {
+                              if (window.confirm('Reject this order?')) handleStatusUpdate('Rejected');
+                            }}
+                            disabled={isUpdating}
+                          >
+                            <XCircle className="w-4 h-4 mr-2" />
+                            Reject Order
+                          </Button>
+                        </div>
+                      ) : (
+                        <Select
+                          value={orderStatus}
+                          onValueChange={handleStatusUpdate}
+                          disabled={isUpdating || ['Delivered', 'Cancelled', 'Rejected'].includes(orderStatus)}
+                        >
+                          <SelectTrigger className="w-full md:w-[240px] h-10 border-border bg-background text-foreground focus:ring-primary">
+                            <div className="flex items-center gap-2">
+                              <Truck className="w-4 h-4 text-muted-foreground" />
+                              <SelectValue placeholder="Update Status" />
+                            </div>
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover text-popover-foreground border-border">
+                            <SelectItem value="Accepted">Accepted</SelectItem>
+                            <SelectItem value="On the way">On the way</SelectItem>
+                            <SelectItem value="Delivered">Delivered</SelectItem>
+                            <SelectItem value="Cancelled">Cancelled</SelectItem>
+                            {orderStatus === 'Rejected' && <SelectItem value="Rejected">Rejected</SelectItem>}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="hidden md:flex items-center gap-2 text-[10px] font-bold uppercase tracking-tighter text-amber-500 bg-amber-500/10 px-3 py-2 rounded-lg border border-amber-500/20">
+                    <Info className="w-4 h-4" />
+                    Updating status notifies the customer instantly.
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Items Table */}
+          <motion.div variants={slideUp} initial="initial" animate="animate" custom={1}>
+            <Card className="border-border bg-card">
+              <CardHeader className="pb-0">
+                <div className="flex items-center gap-2">
+                  <Package className="w-5 h-5 text-primary" />
+                  <CardTitle className="text-lg text-foreground">Items in Order</CardTitle>
+                </div>
+                <CardDescription className="text-muted-foreground">Total {orderDetail.items.length} items listed below</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0 mt-4">
+                <Table>
+                  <TableHeader className="bg-muted/30">
+                    <TableRow className="border-border">
+                      <TableHead className="w-[80px] text-center font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Sr.</TableHead>
+                      <TableHead className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Product Information</TableHead>
+                      <TableHead className="text-center font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Unit</TableHead>
+                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Price</TableHead>
+                      <TableHead className="text-center font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Qty</TableHead>
+                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Subtotal</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {orderDetail.items.map((item) => (
+                      <TableRow key={item.srNo} className="border-border hover:bg-muted/30 transition-colors">
+                        <TableCell className="text-center text-muted-foreground font-mono text-[10px]">{item.srNo}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-foreground line-clamp-1">{item.product}</span>
+                            <span className="text-[10px] text-muted-foreground">Tax: ₹{item.tax.toFixed(2)} ({item.taxPercent}%)</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="secondary" className="bg-muted text-muted-foreground font-normal border-none">
+                            {item.unit}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-medium text-foreground">₹{item.price.toFixed(2)}</TableCell>
+                        <TableCell className="text-center">
+                          <span className="font-bold text-foreground">x{item.qty}</span>
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-primary">₹{item.subtotal.toFixed(2)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+
+                {/* Totals Summary */}
+                <div className="p-6 bg-muted/20">
+                  <div className="flex flex-col items-end space-y-3">
+                    <div className="flex justify-between w-full max-w-[280px] text-xs font-bold uppercase tracking-tighter text-muted-foreground">
+                      <span>Subtotal</span>
+                      <span>₹{totalSubtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between w-full max-w-[280px] text-xs font-bold uppercase tracking-tighter text-muted-foreground">
+                      <span>Tax Amount</span>
+                      <span>₹{totalTax.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between w-full max-w-[280px] text-xs font-bold uppercase tracking-tighter text-muted-foreground">
+                      <span>Delivery Fee</span>
+                      <span className="text-emerald-500">FREE</span>
+                    </div>
+                    <Separator className="w-full max-w-[280px] bg-border" />
+                    <div className="flex justify-between w-full max-w-[280px]">
+                      <span className="text-lg font-extrabold text-foreground">Grand Total</span>
+                      <span className="text-xl font-extrabold text-primary">₹{grandTotal.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+        {/* Right: Customer & Invoice Details */}
+        <div className="space-y-6">
+          {/* Customer Card */}
+          <motion.div variants={slideUp} initial="initial" animate="animate" custom={2}>
+            <Card className="border-border bg-card">
+              <CardHeader className="pb-4 border-b border-border">
+                <CardTitle className="text-base flex items-center gap-2 text-foreground">
+                  <User className="w-4 h-4 text-primary" />
+                  Customer Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-4">
+                <div className="flex items-start gap-4 p-3 rounded-lg border border-border bg-muted/30">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <User className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-foreground">Arjun Sharma</span>
+                    <span className="text-[10px] font-bold uppercase tracking-tighter text-muted-foreground">Customer ID: CUST-8291</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <Phone className="w-4 h-4 text-primary/60" />
+                    <span className="text-foreground">+91 98765 43210</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <Mail className="w-4 h-4 text-primary/60" />
+                    <span className="text-foreground">arjun.s@example.com</span>
+                  </div>
+                </div>
+
+                <Separator className="bg-border" />
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+                    <MapPin className="w-4 h-4 text-primary" />
+                    Delivery Address
+                  </div>
+                  <div className="p-3 bg-muted/40 rounded-lg text-xs leading-relaxed text-muted-foreground italic">
+                    Flat No. 405, Skyscraper Apartments, Near Central Park, Sector 42, Gurgaon, Haryana - 122001
+                  </div>
+                  <Button variant="outline" size="sm" className="w-full text-primary border-primary/20 hover:bg-primary/10 h-9 text-[11px] font-bold uppercase tracking-wider">
+                    <ExternalLink className="w-3.5 h-3.5 mr-2" />
+                    View on Google Maps
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Payment & Invoice Card */}
+          <motion.div variants={slideUp} initial="initial" animate="animate" custom={3}>
+            <Card className="border-border bg-card">
+              <CardHeader className="pb-4 border-b border-border">
+                <CardTitle className="text-base flex items-center gap-2 text-foreground">
+                  <CreditCard className="w-4 h-4 text-primary" />
+                  Payment Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-4">
+                <div className="flex items-center justify-between p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] uppercase tracking-wider text-emerald-500 font-bold">Payment Method</span>
+                    <span className="text-sm font-bold text-emerald-600">Online UPI</span>
+                  </div>
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground font-bold uppercase tracking-tighter">Transaction ID</span>
+                    <span className="font-mono text-foreground">TXN_9201837465</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground font-bold uppercase tracking-tighter">Invoice Number</span>
+                    <span className="font-bold text-foreground">{orderDetail.invoiceNumber}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground font-bold uppercase tracking-tighter">Payment Status</span>
+                    <Badge className="bg-emerald-500/10 text-emerald-500 border-none hover:bg-emerald-500/20">Paid</Badge>
+                  </div>
+                </div>
+
+                <Separator className="bg-border" />
+
+                <div className="bg-muted/30 p-4 rounded-xl space-y-3 border border-border/50">
+                  <p className="text-[11px] text-muted-foreground text-center italic">
+                    "Customer has requested eco-friendly packaging if possible."
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
         </div>
       </div>
 
-      {/* View Order Details Section */}
-      <div className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
-        <div className="bg-teal-600 text-white px-4 sm:px-6 py-3">
-          <h2 className="text-base sm:text-lg font-semibold">View Order Details</h2>
+      {/* Footer Branding */}
+      <motion.div
+        variants={fadeIn}
+        initial="initial"
+        animate="animate"
+        className="pt-8 flex flex-col items-center justify-center opacity-60 grayscale hover:grayscale-0 transition-all duration-500"
+      >
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-6 h-6 bg-primary rounded flex items-center justify-center text-[10px] text-primary-foreground font-bold shadow-sm">A</div>
+          <span className="text-xs font-bold tracking-tighter text-foreground uppercase">Appzeto Seller Ecosystem</span>
         </div>
-        <div className="bg-white px-4 sm:px-6 py-6">
-          {/* Header Section */}
-          <div className="flex flex-col lg:flex-row justify-between gap-6 mb-6">
-            {/* Left: Company Info */}
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 bg-green-600 rounded flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">A</span>
-                </div>
-                <div>
-                  <div className="text-xs text-green-600 font-semibold">Dhakad Snazzy</div>
-                  <div className="text-[10px] text-green-600">in 10 Minutes</div>
-                </div>
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-neutral-900 mb-2">Dhakad Snazzy - 10 Minute App</h1>
-              <div className="text-sm text-neutral-600 mb-1">
-                <span className="font-medium">From:</span> Dhakad Snazzy - 10 Minute App
-              </div>
-              <div className="text-sm text-neutral-600 space-y-1">
-                <div>
-                  <span className="font-medium">Phone:</span> 8956656429
-                </div>
-                <div>
-                  <span className="font-medium">Email:</span> info@Dhakad Snazzy.com
-                </div>
-                <div>
-                  <span className="font-medium">Website:</span> https://Dhakad Snazzy.com
-                </div>
-              </div>
-            </div>
-
-            {/* Right: Invoice Details */}
-            <div className="flex-1 lg:text-right">
-              <div className="text-sm text-neutral-600 mb-4">
-                <span className="font-medium">Date:</span> {formatDate(orderDetail.orderDate)}
-              </div>
-              <div className="text-lg font-semibold text-neutral-900 mb-1">Invoice #{orderDetail.invoiceNumber}</div>
-              <div className="text-sm text-neutral-600 mb-1">
-                <span className="font-medium">Order ID:</span> {orderDetail.id}
-              </div>
-              <div className="text-sm text-neutral-600 mb-1">
-                <span className="font-medium">Delivery Date:</span> {formatDate(orderDetail.deliveryDate)}
-              </div>
-              <div className="text-sm text-neutral-600 mb-3">
-                <span className="font-medium">Time Slot:</span> {orderDetail.timeSlot}
-              </div>
-              <div className="flex items-center gap-2 lg:justify-end">
-                <span className="text-sm font-medium text-neutral-700">Order Status:</span>
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(orderStatus)}`}>
-                  {orderStatus}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Product Table */}
-          <div className="overflow-x-auto mb-6">
-            <table className="w-full min-w-[800px]">
-              <thead className="bg-neutral-50 border-b border-neutral-200">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">Sr. No.</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">Product</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">Unit</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">Price</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">Tax ₹ (%)</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">Qty</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">Subtotal</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-neutral-200">
-                {orderDetail.items.map((item) => (
-                  <tr key={item.srNo}>
-                    <td className="px-4 py-3 text-sm text-neutral-900">{item.srNo}</td>
-                    <td className="px-4 py-3 text-sm text-neutral-900">{item.product}</td>
-                    <td className="px-4 py-3 text-sm text-neutral-900">{formatUnit(item.unit, item.qty)}</td>
-                    <td className="px-4 py-3 text-sm text-neutral-900">₹{item.price.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-sm text-neutral-600">
-                      {item.tax.toFixed(2)} ({item.taxPercent.toFixed(2)}%)
-                    </td>
-                    <td className="px-4 py-3 text-sm text-neutral-900">{item.qty}</td>
-                    <td className="px-4 py-3 text-sm text-neutral-900 font-medium">₹{item.subtotal.toFixed(2)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Bill Generation Note */}
-          <div className="border-t border-dashed border-neutral-300 pt-4">
-            <p className="text-sm text-neutral-600 text-center">
-              Bill Generated by Dhakad Snazzy - 10 Minute App
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <footer className="mt-6 px-4 sm:px-6 text-center py-4 bg-neutral-100 rounded-lg">
-        <p className="text-xs sm:text-sm text-neutral-600">
-          Copyright Â© 2025. Developed By{' '}
-          <span className="font-semibold text-teal-600">Dhakad Snazzy - 10 Minute App</span>
-        </p>
-      </footer>
+        <p className="text-[10px] font-bold text-muted-foreground tracking-widest uppercase">Professional Order Management System v2.0</p>
+      </motion.div>
     </div>
   );
 }
+
+const Info = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 16v-4" />
+    <path d="M12 8h.01" />
+  </svg>
+);
 
 

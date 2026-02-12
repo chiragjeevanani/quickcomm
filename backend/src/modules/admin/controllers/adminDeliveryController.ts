@@ -3,6 +3,7 @@ import { asyncHandler } from "../../../utils/asyncHandler";
 import Delivery from "../../../models/Delivery";
 import DeliveryAssignment from "../../../models/DeliveryAssignment";
 import CashCollection from "../../../models/CashCollection";
+import WalletTransaction from "../../../models/WalletTransaction";
 
 /**
  * Create a new delivery boy
@@ -432,3 +433,75 @@ export const getDeliveryBoyCashCollections = asyncHandler(
     });
   }
 );
+
+/**
+ * Add Fund Transfer (Credit/Debit) for Delivery Boy
+ */
+export const addFundTransfer = asyncHandler(async (req: Request, res: Response) => {
+  const { deliveryBoyId, amount, type, message } = req.body;
+
+  if (!deliveryBoyId || !amount || !type || !message) {
+    return res.status(400).json({
+      success: false,
+      message: "Delivery Boy, Amount, Type, and Message are required",
+    });
+  }
+
+  if (amount <= 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Amount must be greater than 0",
+    });
+  }
+
+  if (!["Credit", "Debit"].includes(type)) {
+    return res.status(400).json({
+      success: false,
+      message: "Type must be 'Credit' or 'Debit'",
+    });
+  }
+
+  const deliveryBoy = await Delivery.findById(deliveryBoyId);
+  if (!deliveryBoy) {
+    return res.status(404).json({
+      success: false,
+      message: "Delivery boy not found",
+    });
+  }
+
+  // Update Balance
+  // Credit: Add to balance (Money given to delivery boy / Wallet Top-up)
+  // Debit: Deduct from balance (Recovery / Penalty)
+  const previousBalance = deliveryBoy.balance;
+  if (type === "Credit") {
+    deliveryBoy.balance += Number(amount);
+  } else {
+    deliveryBoy.balance -= Number(amount);
+  }
+
+  await deliveryBoy.save();
+
+  // Create Transaction Record
+  const reference = `TRX-ADMIN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+  await WalletTransaction.create({
+    userId: deliveryBoy._id,
+    userType: "DELIVERY_BOY",
+    amount: Number(amount),
+    type: type,
+    description: message,
+    status: "Completed",
+    reference: reference,
+  });
+
+  return res.status(200).json({
+    success: true,
+    message: "Fund transfer successful",
+    data: {
+      deliveryBoyId: deliveryBoy._id,
+      previousBalance,
+      newBalance: deliveryBoy.balance,
+      transactionId: reference,
+    },
+  });
+});

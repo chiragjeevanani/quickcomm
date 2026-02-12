@@ -1,13 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  ArrowLeft, Heart, ShoppingCart, Trash2,
+  Package, ShoppingBag, Star, ChevronRight
+} from 'lucide-react';
 import { getWishlist, removeFromWishlist } from '../../services/api/customerWishlistService';
 import { Product } from '../../types/domain';
 import { useCart } from '../../context/CartContext';
 import { useLocation } from '../../hooks/useLocation';
 import { useToast } from '../../context/ToastContext';
-import Button from '../../components/ui/button';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Button } from '../../components/ui/button';
+import { Card } from '../../components/ui/card';
+import { Skeleton } from '../../components/ui/skeleton';
 import { calculateProductPrice } from '../../utils/priceUtils';
+import { cn } from '@/lib/utils';
 
 export default function Wishlist() {
   const navigate = useNavigate();
@@ -56,80 +63,115 @@ export default function Wishlist() {
   };
 
   return (
-    <div className="pb-24 md:pb-8 bg-white min-h-screen">
-      <div className="px-4 py-4 bg-white border-b border-neutral-200 mb-4 sticky top-0 z-10 flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="p-1">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M15 18L9 12L15 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-        </button>
-        <h1 className="text-xl font-bold text-neutral-900">My Wishlist</h1>
+    <div className="min-h-screen bg-neutral-50/30 pb-24">
+      {/* Header */}
+      <div className="bg-white border-b border-neutral-100 sticky top-0 z-40">
+        <div className="max-w-5xl mx-auto px-6 h-20 flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(-1)}
+            className="rounded-xl hover:bg-neutral-100"
+          >
+            <ArrowLeft size={20} />
+          </Button>
+          <h1 className="text-xl font-black text-neutral-900 uppercase tracking-tighter">My Wishlist</h1>
+        </div>
       </div>
 
-      <div className="px-4">
+      <div className="max-w-5xl mx-auto px-6 py-8">
         {loading ? (
-          <div className="flex justify-center pt-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-          </div>
-        ) : products.length > 0 ? (
-          <div className="grid grid-cols-2 gap-4">
-            {products.map((product) => (
-              <motion.div
-                key={product.id}
-                layout
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="bg-white rounded-xl border border-neutral-100 shadow-sm overflow-hidden flex flex-col relative"
-              >
-                <button
-                  onClick={() => handleRemove(product.id)}
-                  className="absolute top-2 right-2 z-10 w-8 h-8 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-red-500 shadow-sm"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
-                </button>
-
-                <Link to={`/product/${product.id}`} className="aspect-square bg-neutral-50 flex items-center justify-center p-4">
-                  {product.imageUrl || product.mainImage ? (
-                    <img src={product.imageUrl || product.mainImage} alt={product.name} className="w-full h-full object-contain" />
-                  ) : (
-                    <span className="text-4xl">📦</span>
-                  )}
-                </Link>
-
-                <div className="p-3 flex-1 flex flex-col">
-                  <h3 className="text-sm font-bold text-neutral-900 line-clamp-2 mb-1">{product.name}</h3>
-                  <div className="text-[10px] text-neutral-500 mb-2">{product.pack}</div>
-                  <div className="mt-auto flex flex-col gap-2">
-                    {(() => {
-                      const { displayPrice, mrp, hasDiscount } = calculateProductPrice(product);
-                      return (
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-sm font-bold text-neutral-900">₹{displayPrice.toLocaleString('en-IN')}</span>
-                          {hasDiscount && (
-                            <span className="text-xs text-neutral-500 line-through">₹{mrp.toLocaleString('en-IN')}</span>
-                          )}
-                        </div>
-                      );
-                    })()}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => addToCart(product)}
-                      className="w-full border-green-600 text-green-600 hover:bg-green-50 rounded-lg h-8 text-xs font-bold"
-                    >
-                      ADD TO CART
-                    </Button>
-                  </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div key={i} className="space-y-4">
+                <Skeleton className="aspect-square rounded-[2rem]" />
+                <div className="space-y-2 px-2">
+                  <Skeleton className="h-3 w-1/3" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-6 w-1/2 mt-4" />
+                  <Skeleton className="h-12 w-full rounded-2xl mt-2" />
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
+        ) : products.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <AnimatePresence mode="popLayout">
+              {products.map((product) => (
+                <motion.div
+                  key={product.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                >
+                  <Card className="rounded-[2rem] border-neutral-100 overflow-hidden bg-white hover:shadow-xl hover:shadow-neutral-200/50 transition-all group">
+                    <div className="relative aspect-square bg-neutral-50 p-6 flex items-center justify-center">
+                      <button
+                        onClick={() => handleRemove(product.id)}
+                        className="absolute top-4 right-4 z-10 w-10 h-10 bg-white/80 backdrop-blur-md rounded-xl flex items-center justify-center text-red-500 shadow-sm hover:bg-white hover:scale-110 transition-all"
+                      >
+                        <Heart size={20} fill="currentColor" />
+                      </button>
+
+                      <Link to={`/product/${product.id}`} className="w-full h-full flex items-center justify-center">
+                        {product.imageUrl || product.mainImage ? (
+                          <img
+                            src={product.imageUrl || product.mainImage}
+                            alt={product.name}
+                            className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500"
+                          />
+                        ) : (
+                          <Package size={48} className="text-neutral-200" />
+                        )}
+                      </Link>
+                    </div>
+
+                    <div className="p-6">
+                      <div className="mb-4">
+                        <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-1">{product.pack}</p>
+                        <h3 className="text-sm font-black text-neutral-900 line-clamp-2 uppercase tracking-tight h-10">{product.name}</h3>
+                      </div>
+
+                      <div className="flex flex-col gap-4 mt-auto">
+                        {(() => {
+                          const { displayPrice, mrp, hasDiscount } = calculateProductPrice(product);
+                          return (
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg font-black text-neutral-900 tracking-tighter">₹{displayPrice}</span>
+                              {hasDiscount && (
+                                <span className="text-xs font-bold text-neutral-400 line-through">₹{mrp}</span>
+                              )}
+                            </div>
+                          );
+                        })()}
+
+                        <Button
+                          onClick={() => addToCart(product)}
+                          className="w-full h-12 rounded-2xl bg-neutral-900 hover:bg-green-600 text-white font-black text-[10px] uppercase tracking-widest transition-all"
+                        >
+                          <ShoppingBag size={14} className="mr-2" />
+                          To Cart
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
         ) : (
-          <div className="text-center py-20 text-neutral-500">
-            <div className="text-6xl mb-4">❤️</div>
-            <h2 className="text-lg font-bold text-neutral-900 mb-2">Your wishlist is empty</h2>
-            <p className="text-sm mb-6">Explore more and shortlist some items</p>
-            <Button onClick={() => navigate('/')} className="bg-green-600 text-white rounded-full px-8">
-              Start Shopping
+          <div className="flex flex-col items-center justify-center py-32 text-center">
+            <div className="w-24 h-24 rounded-[2.5rem] bg-neutral-100 flex items-center justify-center text-neutral-300 mb-8">
+              <Heart size={40} />
+            </div>
+            <h2 className="text-2xl font-black text-neutral-900 uppercase tracking-tighter mb-2">Wishlist is empty</h2>
+            <p className="text-sm font-bold text-neutral-500 uppercase tracking-widest mb-8">Save items you love to find them later</p>
+            <Button
+              onClick={() => navigate('/')}
+              className="h-16 px-12 rounded-3xl bg-green-600 hover:bg-green-700 text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-green-200"
+            >
+              Discover Products
             </Button>
           </div>
         )}

@@ -1,11 +1,43 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+    History,
+    CheckCircle2,
+    XCircle,
+    Clock,
+    IndianRupee,
+    ExternalLink,
+    MoreVertical,
+    AlertCircle,
+    FileText
+} from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
 import {
     getWithdrawalRequests,
     processWithdrawal,
     WithdrawalRequest
 } from '../../../services/api/admin/adminWalletService';
+import DataTable from "../components/ui/DataTable";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+    DropdownMenuSeparator
+} from "@/components/ui/dropdown-menu";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+    DialogDescription
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function AdminWithdrawals() {
     const { showToast } = useToast();
@@ -28,8 +60,6 @@ export default function AdminWithdrawals() {
                 status: filter === 'all' ? undefined : filter,
             });
             if (response.success) {
-                // Backend returns { data: { requests: [], pagination: {} } }
-                // We handle both direct array (legacy) and nested object structure
                 const data = response.data;
                 if (Array.isArray(data)) {
                     setWithdrawals(data);
@@ -63,7 +93,7 @@ export default function AdminWithdrawals() {
 
     const handleReject = async (id: string) => {
         const remarks = prompt('Enter rejection reason (optional):');
-        if (remarks === null) return; // User cancelled
+        if (remarks === null) return;
 
         try {
             setIsProcessing(true);
@@ -106,191 +136,155 @@ export default function AdminWithdrawals() {
         }
     };
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-            </div>
-        );
-    }
+    const getStatusBadge = (status: string) => {
+        switch (status) {
+            case 'Completed': return <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">{status}</Badge>;
+            case 'Approved': return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20">{status}</Badge>;
+            case 'Rejected': return <Badge variant="destructive" className="bg-rose-500/10 text-rose-500 border-rose-500/20">{status}</Badge>;
+            default: return <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20">{status}</Badge>;
+        }
+    };
+
+    const columns = [
+        {
+            header: "User",
+            accessorKey: "userId",
+            cell: (w: any) => (
+                <div className="flex flex-col">
+                    <span className="font-bold text-foreground line-clamp-1">{w.userId?.sellerName || w.userId?.storeName || w.userId?.name || 'N/A'}</span>
+                    <div className="flex items-center gap-2 mt-0.5">
+                        <Badge className={`text-[10px] h-4 px-1 ${w.userType === 'SELLER' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>
+                            {w.userType}
+                        </Badge>
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Ref: {w._id?.slice(-6)}</span>
+                    </div>
+                </div>
+            )
+        },
+        {
+            header: "Payment Info",
+            accessorKey: "paymentMethod",
+            cell: (w: any) => (
+                <div className="flex flex-col">
+                    <span className="text-xs font-bold text-foreground">{w.paymentMethod}</span>
+                    <span className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate max-w-[150px]">{w.accountDetails || 'No details'}</span>
+                </div>
+            )
+        },
+        {
+            header: "Requested On",
+            accessorKey: "createdAt",
+            cell: (w: any) => <span className="text-xs text-muted-foreground">{new Date(w.createdAt || w.requestDate).toLocaleDateString()}</span>
+        },
+        {
+            header: "Amount",
+            accessorKey: "amount",
+            cell: (w: any) => <span className="font-bold text-foreground">₹{w.amount?.toFixed(2)}</span>
+        },
+        {
+            header: "Status",
+            accessorKey: "status",
+            cell: (w: any) => getStatusBadge(w.status)
+        },
+        {
+            header: "Action",
+            accessorKey: "_id",
+            cell: (w: any) => (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                        {w.status === 'Pending' && (
+                            <>
+                                <DropdownMenuItem onClick={() => handleApprove(w._id || w.id)} className="text-emerald-500 focus:text-emerald-500 focus:bg-emerald-50 gap-2">
+                                    <CheckCircle2 className="h-4 w-4" /> Approve
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleReject(w._id || w.id)} className="text-rose-500 focus:text-rose-500 focus:bg-rose-50 gap-2">
+                                    <XCircle className="h-4 w-4" /> Reject
+                                </DropdownMenuItem>
+                            </>
+                        )}
+                        {w.status === 'Approved' && (
+                            <DropdownMenuItem onClick={() => { setSelectedWithdrawal(w); setShowCompleteModal(true); }} className="text-blue-500 focus:text-blue-500 focus:bg-blue-50 gap-2">
+                                <ExternalLink className="h-4 w-4" /> Complete Transfer
+                            </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="gap-2">
+                            <FileText className="h-4 w-4 text-muted-foreground" /> View Details
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            )
+        }
+    ];
 
     return (
-        <div className="max-w-7xl mx-auto">
-            {/* Filters */}
-            <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                {['all', 'Pending', 'Approved', 'Completed', 'Rejected'].map((status) => (
-                    <button
-                        key={status}
-                        onClick={() => setFilter(status)}
-                        className={`px-4 py-2 rounded-lg font-medium transition whitespace-nowrap ${filter === status
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
-                            }`}
+        <div className="space-y-6">
+            <div className="flex flex-wrap gap-2 mb-2">
+                {['all', 'Pending', 'Approved', 'Completed', 'Rejected'].map((s) => (
+                    <Button
+                        key={s}
+                        variant={filter === s ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setFilter(s)}
+                        className={`h-9 px-4 font-bold uppercase tracking-tighter text-[10px] ${filter === s ? 'shadow-lg shadow-primary/20' : ''}`}
                     >
-                        {status.charAt(0).toUpperCase() + status.slice(1)}
-                    </button>
+                        {s} Requests
+                    </Button>
                 ))}
             </div>
 
-            {/* Withdrawals List */}
-            <div className="space-y-4">
-                {withdrawals.length === 0 ? (
-                    <div className="bg-white rounded-xl p-8 text-center border border-gray-200">
-                        <p className="text-gray-500">No withdrawal requests found</p>
-                    </div>
-                ) : (
-                    withdrawals.map((withdrawal: any) => (
-                        <motion.div
-                            key={withdrawal._id || withdrawal.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="bg-white rounded-xl shadow-sm border border-gray-100 p-6"
-                        >
-                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <h3 className="font-semibold text-lg">
-                                            {withdrawal.userType === 'SELLER' ? 'Seller' : 'Delivery Boy'} Withdrawal
-                                        </h3>
-                                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${withdrawal.userType === 'SELLER' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'
-                                            }`}>
-                                            {withdrawal.userType}
-                                        </span>
-                                    </div>
-                                    <p className="text-sm text-gray-600 font-medium">
-                                        {withdrawal.userId?.sellerName || withdrawal.userId?.storeName || withdrawal.userId?.name || withdrawal.userId?.firstName || 'N/A'}
-                                    </p>
-                                    <p className="text-xs text-gray-500">
-                                        Requested: {new Date(withdrawal.createdAt || withdrawal.requestDate).toLocaleString('en-IN')}
-                                    </p>
-                                </div>
-                                <div className="text-left md:text-right w-full md:w-auto">
-                                    <p className="text-2xl font-bold text-gray-900">₹{withdrawal.amount?.toFixed(2)}</p>
-                                    <span
-                                        className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mt-2 ${withdrawal.status === 'Completed'
-                                            ? 'bg-green-100 text-green-700'
-                                            : withdrawal.status === 'Approved'
-                                                ? 'bg-blue-100 text-blue-700'
-                                                : withdrawal.status === 'Rejected'
-                                                    ? 'bg-red-100 text-red-700'
-                                                    : 'bg-yellow-100 text-yellow-700'
-                                            }`}
-                                    >
-                                        {withdrawal.status}
-                                    </span>
-                                </div>
-                            </div>
+            <Card className="border-border bg-card shadow-sm">
+                <CardContent className="p-6">
+                    <DataTable
+                        columns={columns}
+                        data={withdrawals}
+                        loading={loading}
+                        emptyMessage="No withdrawal requests found."
+                    />
+                </CardContent>
+            </Card>
 
-                            <div className="grid md:grid-cols-2 gap-4 mb-4 bg-gray-50 p-4 rounded-lg">
-                                <div>
-                                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Payment Method</p>
-                                    <p className="font-medium text-sm">{withdrawal.paymentMethod}</p>
-                                </div>
-                                <div>
-                                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Bank Details</p>
-                                    <p className="font-medium text-sm break-all">
-                                        {withdrawal.accountDetails || (withdrawal.userId?.accountNumber ? `****${withdrawal.userId.accountNumber.slice(-4)}` : 'N/A')}
-                                    </p>
-                                </div>
-                                {withdrawal.transactionReference && (
-                                    <div className="col-span-2 border-t border-gray-200 pt-2 mt-2">
-                                        <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Transaction Reference</p>
-                                        <p className="font-mono text-sm">{withdrawal.transactionReference}</p>
-                                    </div>
-                                )}
-                            </div>
-
-                            {withdrawal.remarks && (
-                                <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-lg">
-                                    <p className="text-xs text-red-600 uppercase tracking-wide mb-1">Rejection Reason</p>
-                                    <p className="text-sm text-red-800">{withdrawal.remarks}</p>
-                                </div>
-                            )}
-
-                            {/* Actions */}
-                            {withdrawal.status === 'Pending' && (
-                                <div className="flex gap-3 mt-4 border-t pt-4">
-                                    <button
-                                        onClick={() => handleApprove(withdrawal._id || withdrawal.id)}
-                                        disabled={isProcessing}
-                                        className="flex-1 bg-green-600 text-white py-2 rounded-lg font-medium hover:bg-green-700 transition disabled:opacity-50"
-                                    >
-                                        Approve
-                                    </button>
-                                    <button
-                                        onClick={() => handleReject(withdrawal._id || withdrawal.id)}
-                                        disabled={isProcessing}
-                                        className="flex-1 bg-white text-red-600 border border-red-200 py-2 rounded-lg font-medium hover:bg-red-50 transition disabled:opacity-50"
-                                    >
-                                        Reject
-                                    </button>
-                                </div>
-                            )}
-
-                            {withdrawal.status === 'Approved' && (
-                                <div className="mt-4 border-t pt-4">
-                                    <button
-                                        onClick={() => {
-                                            setSelectedWithdrawal(withdrawal);
-                                            setShowCompleteModal(true);
-                                        }}
-                                        disabled={isProcessing}
-                                        className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50"
-                                    >
-                                        Mark as Completed
-                                    </button>
-                                </div>
-                            )}
-                        </motion.div>
-                    ))
-                )}
-            </div>
-
-            {/* Complete Modal */}
-            {showCompleteModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl"
-                    >
-                        <h2 className="text-xl font-bold mb-4">Complete Withdrawal</h2>
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Transaction Reference ID
-                            </label>
-                            <input
-                                type="text"
+            <Dialog open={showCompleteModal} onOpenChange={setShowCompleteModal}>
+                <DialogContent className="sm:max-w-md bg-card border-border">
+                    <DialogHeader>
+                        <DialogTitle className="text-foreground">Complete Withdrawal</DialogTitle>
+                        <DialogDescription className="text-muted-foreground">
+                            Please provide the transaction reference/UTR number to complete this payout.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="grid w-full items-center gap-1.5">
+                            <Label htmlFor="txRef" className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Transaction Reference ID</Label>
+                            <Input
+                                id="txRef"
+                                placeholder="e.g. UPI Ref No. or Bank TRN ID"
                                 value={transactionRef}
                                 onChange={(e) => setTransactionRef(e.target.value)}
-                                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-                                placeholder="e.g. UPI Ref No. or Bank TRN ID"
-                                autoFocus
+                                className="bg-muted/30 border-border focus-visible:ring-primary/20"
                             />
                         </div>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => {
-                                    setShowCompleteModal(false);
-                                    setSelectedWithdrawal(null);
-                                    setTransactionRef('');
-                                }}
-                                className="flex-1 border border-gray-300 rounded-lg py-2 font-medium hover:bg-gray-50 text-gray-700"
-                                disabled={isProcessing}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleComplete}
-                                className="flex-1 bg-blue-600 text-white rounded-lg py-2 font-medium hover:bg-blue-700 disabled:opacity-50"
-                                disabled={isProcessing}
-                            >
-                                {isProcessing ? 'Processing...' : 'Complete Transfer'}
-                            </button>
-                        </div>
-                    </motion.div>
-                </div>
-            )}
+                        {selectedWithdrawal && (
+                            <div className="bg-muted/30 p-4 rounded-lg border border-border">
+                                <div className="flex justify-between items-center text-sm font-medium">
+                                    <span className="text-muted-foreground">Amount to Transfer:</span>
+                                    <span className="text-foreground font-bold text-lg">₹{selectedWithdrawal.amount?.toFixed(2)}</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button variant="outline" onClick={() => setShowCompleteModal(false)} disabled={isProcessing}>Cancel</Button>
+                        <Button onClick={handleComplete} disabled={isProcessing || !transactionRef} className="bg-primary text-primary-foreground">
+                            {isProcessing ? 'Processing...' : 'Confirm Transfer'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

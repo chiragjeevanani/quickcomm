@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Lottie from 'lottie-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLoading } from '../../context/LoadingContext';
+import { useThemeContext } from '../../context/ThemeContext';
 import './iconLoader.css';
 
 interface IconLoaderProps {
@@ -10,6 +11,7 @@ interface IconLoaderProps {
 
 const IconLoader: React.FC<IconLoaderProps> = ({ forceShow = false }) => {
   const { isRouteLoading } = useLoading();
+  const { mode } = useThemeContext();
   const show = isRouteLoading || forceShow;
   const [animationData, setAnimationData] = useState<any>(null);
 
@@ -38,10 +40,10 @@ const IconLoader: React.FC<IconLoaderProps> = ({ forceShow = false }) => {
                 <Lottie
                   animationData={animationData}
                   loop={true}
-                  className="loader-lottie"
+                  className={`loader-lottie ${mode === 'dark' ? 'brightness-90 contrast-125 grayscale-[0.2]' : ''}`}
                 />
               ) : (
-                <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
+                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
               )}
             </div>
           </div>

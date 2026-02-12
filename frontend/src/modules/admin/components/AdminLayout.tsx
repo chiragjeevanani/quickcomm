@@ -1,48 +1,61 @@
-import { useState, ReactNode } from 'react';
-import AdminSidebar from './AdminSidebar';
-import AdminHeader from './AdminHeader';
+import { useState } from "react";
+import { Outlet } from "react-router-dom";
+import AdminSidebar from "./AdminSidebar";
+import AdminHeader from "./AdminHeader";
+import { motion, AnimatePresence } from "framer-motion";
 
-interface AdminLayoutProps {
-  children: ReactNode;
-}
-
-export default function AdminLayout({ children }: AdminLayoutProps) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Default to open on desktop
-
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-  };
+export default function AdminLayout({ children }: { children?: React.ReactNode }) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-neutral-50">
-      {/* Overlay for mobile */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-          onClick={toggleSidebar}
-        />
-      )}
-
-      {/* Sidebar - Fixed */}
-      <div
-        className={`fixed left-0 top-0 h-screen z-50 transition-transform duration-300 ease-in-out w-64 ${
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        <AdminSidebar onClose={() => setIsSidebarOpen(false)} />
+    <div className="flex h-screen bg-background overflow-hidden font-sans antialiased text-foreground">
+      {/* Sidebar - Hidden on mobile, shown on desktop */}
+      <div className="hidden lg:block h-full border-r border-border">
+        <AdminSidebar />
       </div>
 
-      {/* Main Content */}
-      <div className={`flex-1 flex flex-col transition-all duration-300 w-full ${
-        isSidebarOpen ? 'lg:ml-64' : 'lg:ml-0'
-      }`}>
-        {/* Header */}
-        <AdminHeader onMenuClick={toggleSidebar} isSidebarOpen={isSidebarOpen} />
+      {/* Mobile Sidebar Overlay */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <div className="fixed inset-0 z-40 lg:hidden">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-md"
+              onClick={() => setIsSidebarOpen(false)}
+            />
+            <motion.div
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="absolute left-0 top-0 bottom-0 z-50"
+            >
+              <AdminSidebar onClose={() => setIsSidebarOpen(false)} />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
-        {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 bg-neutral-50">{children}</main>
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        <AdminHeader
+          onOpenSidebar={() => setIsSidebarOpen(true)}
+          isSidebarOpen={isSidebarOpen}
+        />
+
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-muted/20 dark:bg-background/50">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="max-w-7xl mx-auto w-full"
+          >
+            {children || <Outlet />}
+          </motion.div>
+        </main>
       </div>
     </div>
   );
 }
-

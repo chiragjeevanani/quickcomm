@@ -1,237 +1,189 @@
 ﻿import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { ShoppingBag, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react';
 import { sendOTP, verifyOTP } from '../../../services/api/auth/sellerAuthService';
 import OTPInput from '../../../components/OTPInput';
 import { useAuth } from '../../../context/AuthContext';
+import { useToast } from '../../../context/ToastContext';
+import { fadeIn, slideUp } from '../lib/animations';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
 export default function SellerLogin() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { showToast } = useToast();
   const [mobileNumber, setMobileNumber] = useState('');
   const [showOTP, setShowOTP] = useState(false);
+  const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
-  const handleMobileLogin = async () => {
-    if (mobileNumber.length !== 10) return;
+  const handleSendOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (mobileNumber.length !== 10) {
+      showToast('Please enter a valid 10-digit mobile number', 'error');
+      return;
+    }
 
     setLoading(true);
-    setError('');
-
     try {
       const response = await sendOTP(mobileNumber);
       if (response.success) {
-        // Only show OTP screen on success
         setShowOTP(true);
-        setError(''); // Clear any previous errors
+        showToast('OTP sent successfully', 'success');
       } else {
-        // If not successful, show error and stay on page
-        setError(response.message || 'Failed to send OTP. Please try again.');
+        showToast(response.message || 'Error sending OTP', 'error');
       }
-    } catch (err: any) {
-      // On error, show error message and stay on the same page
-      setError(err.response?.data?.message || 'Failed to send OTP. Please try again.');
+    } catch (error: any) {
+      showToast(error.response?.data?.message || 'Error sending OTP', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOTPComplete = async (otp: string) => {
-    setLoading(true);
-    setError('');
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (otp.length !== 4) {
+      showToast('Please enter a valid 4-digit OTP', 'error');
+      return;
+    }
 
+    setLoading(true);
     try {
       const response = await verifyOTP(mobileNumber, otp);
-      if (response.success && response.data) {
-        // Update auth context with seller data
+      if (response.success) {
+        // Explicitly set userType to 'Seller' so contexts (like OrdersContext) 
+        // handle this user correctly and don't try to fetch customer data
         login(response.data.token, {
-          id: response.data.user.id,
-          name: response.data.user.sellerName,
-          email: response.data.user.email,
-          phone: response.data.user.mobile,
-          userType: 'Seller',
-          storeName: response.data.user.storeName,
-          status: response.data.user.status,
-          address: response.data.user.address,
-          city: response.data.user.city,
+          ...response.data.user,
+          userType: 'Seller'
         });
-        // Navigate to seller dashboard only on success
-        navigate('/seller', { replace: true });
+        showToast('Logged in successfully', 'success');
+        navigate('/seller');
       } else {
-        // If response is not successful, show error and stay on page
-        setError(response.message || 'Login failed. Please try again.');
-        setLoading(false);
+        showToast(response.message || 'Invalid OTP', 'error');
       }
-    } catch (err: any) {
-      // On error, show error message and stay on the same page
-      setError(err.response?.data?.message || 'Invalid OTP. Please try again.');
+    } catch (error: any) {
+      showToast(error.response?.data?.message || 'Invalid OTP', 'error');
+    } finally {
       setLoading(false);
     }
   };
 
-  const handleDhakadSnazzyLogin = () => {
-    // Handle Dhakad Snazzy login logic here
-    navigate('/seller');
-  };
-
-  const handleAdminLogin = () => {
-    // Navigate to admin login page
-    navigate('/admin/login');
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-green-50 flex flex-col items-center justify-center px-4 py-8">
-      {/* Back Button */}
-      <button
-        onClick={() => navigate(-1)}
-        className="absolute top-4 left-4 z-10 w-10 h-10 rounded-full bg-white shadow-md flex items-center justify-center hover:bg-neutral-50 transition-colors"
-        aria-label="Back"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M15 18L9 12L15 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-
-      {/* Login Card */}
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
-        {/* Header Section */}
-        <div className="px-6 py-4 text-center border-b border-green-700" style={{ backgroundColor: 'rgb(21 178 74 / var(--tw-bg-opacity, 1))' }}>
-          <div className="mb-0 -mt-4">
-            <img
-              src="/assets/dhakadsnazzy1.png"
-              alt="Dhakad Snazzy"
-              className="h-44 w-full max-w-xs mx-auto object-fill object-bottom"
-            />
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 sm:p-6 lg:p-8 font-sans">
+      <div className="max-w-md w-full">
+        {/* Logo Section */}
+        <motion.div
+          variants={fadeIn}
+          initial="initial"
+          animate="animate"
+          className="flex flex-col items-center mb-8"
+        >
+          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center shadow-xl shadow-primary/20 mb-4">
+            <ShoppingBag className="text-primary-foreground w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-bold text-white mb-1 -mt-12">Seller Login</h1>
-          <p className="text-green-50 text-sm -mt-2">Access your seller dashboard</p>
-        </div>
+          <h1 className="text-3xl font-extrabold text-foreground tracking-tight">Seller Panel</h1>
+          <p className="text-muted-foreground font-bold mt-2 uppercase tracking-tighter text-[10px]">Manage your business with ease</p>
+        </motion.div>
 
-        {/* Login Form */}
-        <div className="p-6 space-y-4">
-          {!showOTP ? (
-            /* Mobile Login Form */
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                  Mobile Number
-                </label>
-                <div className="flex items-center bg-white border border-neutral-300 rounded-lg overflow-hidden focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-200 transition-all">
-                  <div className="px-3 py-2.5 text-sm font-medium text-neutral-600 border-r border-neutral-300 bg-neutral-50">
-                    +91
+        <motion.div
+          variants={slideUp}
+          initial="initial"
+          animate="animate"
+        >
+          <Card className="border-border bg-card shadow-2xl shadow-primary/5 overflow-hidden">
+            <CardHeader className="space-y-1 pb-6 bg-muted/30 border-b border-border">
+              <CardTitle className="text-2xl font-bold text-center text-foreground">
+                {showOTP ? 'Verify OTP' : 'Welcome Back'}
+              </CardTitle>
+              <CardDescription className="text-center text-muted-foreground">
+                {showOTP
+                  ? `Enter the code sent to +91 ${mobileNumber}`
+                  : 'Enter your mobile number to access your account'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-8">
+              {!showOTP ? (
+                <form onSubmit={handleSendOTP} className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter ml-1">Mobile Number</label>
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-2 border-r border-border pr-2">
+                        <span className="text-xs font-bold text-muted-foreground">+91</span>
+                      </div>
+                      <Input
+                        type="tel"
+                        placeholder="00000 00000"
+                        value={mobileNumber}
+                        onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        className="pl-16 h-12 text-lg tracking-widest border-border bg-background text-foreground focus:ring-primary h-12"
+                      />
+                    </div>
                   </div>
-                  <input
-                    type="tel"
-                    value={mobileNumber}
-                    onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    placeholder="Enter mobile number"
-                    className="flex-1 px-3 py-2.5 text-sm placeholder:text-neutral-400 focus:outline-none"
-                    maxLength={10}
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
-              {error && (
-                <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
-                  {error}
-                </div>
+                  <Button
+                    type="submit"
+                    disabled={loading || mobileNumber.length !== 10}
+                    className="w-full h-12 bg-primary text-primary-foreground hover:bg-primary/90 text-base font-bold transition-all shadow-lg shadow-primary/20 gap-2"
+                  >
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                      <>
+                        Get OTP <ArrowRight className="w-5 h-5" />
+                      </>
+                    )}
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={handleVerifyOTP} className="space-y-6 text-center">
+                  <div className="flex justify-center">
+                    <OTPInput
+                      length={4}
+                      onComplete={(value) => setOtp(value)}
+                      disabled={loading}
+                    />
+                  </div>
+                  <div className="space-y-4">
+                    <Button
+                      type="submit"
+                      disabled={loading || otp.length !== 4}
+                      className="w-full h-12 bg-primary text-primary-foreground hover:bg-primary/90 text-base font-bold transition-all shadow-lg shadow-primary/20 gap-2"
+                    >
+                      {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                        <>
+                          Verify & Login <ShieldCheck className="w-5 h-5" />
+                        </>
+                      )}
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => setShowOTP(false)}
+                      className="text-xs font-bold uppercase tracking-tighter text-primary hover:text-primary/80 transition-colors"
+                    >
+                      Change Mobile Number
+                    </button>
+                  </div>
+                </form>
               )}
+            </CardContent>
+          </Card>
+        </motion.div>
 
-              <button
-                onClick={handleMobileLogin}
-                disabled={mobileNumber.length !== 10 || loading}
-                className={`w-full py-2.5 rounded-lg font-semibold text-sm transition-colors ${mobileNumber.length === 10 && !loading
-                  ? 'bg-teal-600 text-white hover:bg-teal-700 shadow-md'
-                  : 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
-                  }`}
-              >
-                {loading ? 'Sending...' : 'Continue'}
-              </button>
-            </div>
-          ) : (
-            /* OTP Verification Form */
-            <div className="space-y-4">
-              <div className="text-center">
-                <p className="text-sm text-neutral-600 mb-2">
-                  Enter the 4-digit OTP sent to
-                </p>
-                <p className="text-sm font-semibold text-neutral-800">+91 {mobileNumber}</p>
-              </div>
-
-              <OTPInput onComplete={handleOTPComplete} disabled={loading} />
-
-              {error && (
-                <div className="text-sm text-red-600 bg-red-50 p-2 rounded text-center">
-                  {error}
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    setShowOTP(false);
-                    setError('');
-                  }}
-                  disabled={loading}
-                  className="flex-1 py-2.5 rounded-lg font-semibold text-sm bg-neutral-100 text-neutral-700 hover:bg-neutral-200 transition-colors border border-neutral-300"
-                >
-                  Change Number
-                </button>
-                <button
-                  onClick={async () => {
-                    setLoading(true);
-                    setError('');
-                    try {
-                      const response = await sendOTP(mobileNumber);
-                      if (response.success) {
-                        // OTP resent successfully, clear any previous errors
-                        setError('');
-                      } else {
-                        // Show error but stay on page
-                        setError(response.message || 'Failed to resend OTP. Please try again.');
-                      }
-                    } catch (err: any) {
-                      // Show error but stay on page
-                      setError(err.response?.data?.message || 'Failed to resend OTP. Please try again.');
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}
-                  disabled={loading}
-                  className="flex-1 py-2.5 rounded-lg font-semibold text-sm bg-teal-600 text-white hover:bg-teal-700 transition-colors"
-                >
-                  {loading ? 'Sending...' : 'Resend OTP'}
-                </button>
-              </div>
-            </div>
-          )}
-
-
-
-
-
-          {/* Sign Up Link */}
-          <div className="text-center pt-4 border-t border-neutral-200">
-            <p className="text-sm text-neutral-600">
-              Don't have a seller account?{' '}
-              <button
-                onClick={() => navigate('/seller/signup')}
-                className="text-teal-600 hover:text-teal-700 font-semibold"
-              >
-                Sign Up
-              </button>
-            </p>
-          </div>
-        </div>
+        {/* Footer Links */}
+        <motion.p
+          variants={fadeIn}
+          initial="initial"
+          animate="animate"
+          transition={{ delay: 0.2 }}
+          className="text-center mt-8 text-muted-foreground text-[10px] font-bold uppercase tracking-tighter"
+        >
+          Don't have an account?{' '}
+          <Link to="/seller/signup" className="text-primary font-bold hover:underline">
+            Register as Seller
+          </Link>
+        </motion.p>
       </div>
-
-      {/* Footer Text */}
-      <p className="mt-6 text-xs text-neutral-500 text-center max-w-md">
-        By continuing, you agree to Dhakad Snazzy's Terms of Service and Privacy Policy
-      </p>
     </div>
   );
 }
-
-

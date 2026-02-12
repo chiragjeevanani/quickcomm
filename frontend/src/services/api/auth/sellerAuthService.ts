@@ -38,6 +38,10 @@ export interface RegisterData {
   latitude?: string;
   longitude?: string;
   serviceRadiusKm?: string | number;
+  panCard?: string;
+  taxName?: string;
+  taxNumber?: string;
+  ifsc?: string;
 }
 
 export interface RegisterResponse {

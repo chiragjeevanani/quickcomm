@@ -5,6 +5,39 @@ import {
 } from "../../../services/api/admin/adminWalletService";
 import { getAllSellers as getSellers } from "../../../services/api/sellerService";
 import { useAuth } from "../../../context/AuthContext";
+import { useToast } from "../../../context/ToastContext";
+import PageHeader from "../components/ui/PageHeader";
+import DataTable from "../components/ui/DataTable";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Search,
+  Download,
+  Calendar,
+  User,
+  ArrowUpRight,
+  ArrowDownLeft,
+  FilterX,
+  History,
+  IndianRupee,
+  Store,
+  Clock,
+  ChevronLeft,
+  ChevronRight,
+  SearchCode,
+  Receipt,
+  FileText
+} from "lucide-react";
 
 interface Transaction {
   id: string;
@@ -30,21 +63,18 @@ interface Seller {
 
 export default function AdminSellerTransaction() {
   const { isAuthenticated, token } = useAuth();
+  const { showToast } = useToast();
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [selectedSeller, setSelectedSeller] = useState("all");
   const [selectedMethod, setSelectedMethod] = useState("all");
-  const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState("10");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // Fetch sellers on component mount
   useEffect(() => {
     if (!isAuthenticated || !token) {
       setLoading(false);
@@ -55,782 +85,300 @@ export default function AdminSellerTransaction() {
       try {
         const response = await getSellers({ status: "Approved" });
         if (response.success && response.data) {
-          setSellers(
-            response.data.map((seller) => ({
-              _id: seller._id,
-              sellerName: seller.sellerName,
-              storeName: seller.storeName,
-            }))
-          );
+          setSellers(response.data.map(s => ({ _id: s._id, sellerName: s.sellerName, storeName: s.storeName })));
         }
       } catch (err) {
-        console.error("Error fetching sellers:", err);
-        setError("Failed to load sellers");
+        showToast("Failed to sync seller registry", "error");
       }
     };
-
     fetchSellers();
   }, [isAuthenticated, token]);
 
-  // Fetch transactions based on selected seller
   useEffect(() => {
-    if (!isAuthenticated || !token) {
-      setLoading(false);
+    if (!isAuthenticated || !token || (selectedSeller === 'all' && sellers.length === 0)) {
       return;
     }
 
     const fetchTransactions = async () => {
       try {
         setLoading(true);
-        setError(null);
-
         if (selectedSeller === "all") {
-          // Fetch transactions for all sellers
           const allTransactions: Transaction[] = [];
-
-          // For now, we'll fetch from the first few sellers
-          // In a real implementation, you might want a separate endpoint for all transactions
-          const sellersToFetch = sellers.slice(0, 10); // Limit to first 10 sellers
+          const sellersToFetch = sellers.slice(0, 5); // Performance cap for global view
 
           for (const seller of sellersToFetch) {
             try {
-              const response = await getSellerTransactions(seller._id, {
-                page: 1,
-                limit: 50,
-              });
-
+              const response = await getSellerTransactions(seller._id, { page: 1, limit: 20 });
               if (response.success && response.data) {
-                const sellerTransactions: Transaction[] = response.data.map(
-                  (tx: SellerTransaction) => ({
-                    id: tx.id,
-                    sellerName: seller.sellerName,
-                    sellerId: seller._id,
-                    amount: tx.amount,
-                    flag: tx.transactionType,
-                    date: tx.date,
-                    type: tx.type,
-                    status: tx.status,
-                    remark: tx.description,
-                  })
-                );
-                allTransactions.push(...sellerTransactions);
+                allTransactions.push(...response.data.map((tx: any) => ({
+                  id: tx.id,
+                  sellerName: seller.sellerName,
+                  sellerId: seller._id,
+                  amount: tx.amount,
+                  flag: tx.transactionType,
+                  date: tx.date,
+                  type: tx.type,
+                  status: tx.status,
+                  remark: tx.description,
+                })));
               }
-            } catch (err) {
-              console.error(
-                `Error fetching transactions for seller ${seller._id}:`,
-                err
-              );
-            }
+            } catch (ignore) { }
           }
-
-          // Sort by date (newest first)
-          allTransactions.sort(
-            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-          );
+          allTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
           setTransactions(allTransactions);
         } else {
-          // Fetch transactions for specific seller
-          const response = await getSellerTransactions(selectedSeller, {
-            page: currentPage,
-            limit: entriesPerPage,
-          });
-
+          const response = await getSellerTransactions(selectedSeller, { page: currentPage, limit: parseInt(rowsPerPage) });
           if (response.success && response.data) {
-            const seller = sellers.find((s) => s._id === selectedSeller);
-            const sellerTransactions: Transaction[] = response.data.map(
-              (tx: SellerTransaction) => ({
-                id: tx.id,
-                sellerName: seller?.sellerName || "Unknown Seller",
-                sellerId: selectedSeller,
-                amount: tx.amount,
-                flag: tx.transactionType,
-                date: tx.date,
-                type: tx.type,
-                status: tx.status,
-                remark: tx.description,
-              })
-            );
-            setTransactions(sellerTransactions);
-          } else {
-            setTransactions([]);
+            const seller = sellers.find(s => s._id === selectedSeller);
+            setTransactions(response.data.map((tx: any) => ({
+              id: tx.id,
+              sellerName: seller?.sellerName || "Unknown",
+              sellerId: selectedSeller,
+              amount: tx.amount,
+              flag: tx.transactionType,
+              date: tx.date,
+              type: tx.type,
+              status: tx.status,
+              remark: tx.description,
+            })));
           }
         }
       } catch (err) {
-        console.error("Error fetching transactions:", err);
-        setError("Failed to load transactions. Please try again.");
-        setTransactions([]);
+        showToast("Transaction stream synchronization failed", "error");
       } finally {
         setLoading(false);
       }
     };
 
-    if (selectedSeller !== "all" || sellers.length > 0) {
-      fetchTransactions();
+    const timer = setTimeout(fetchTransactions, 300);
+    return () => clearTimeout(timer);
+  }, [selectedSeller, currentPage, rowsPerPage, sellers]);
+
+  const columns = [
+    {
+      header: "Session / Ref",
+      accessorKey: "id",
+      cell: (t: Transaction) => (
+        <div className="flex flex-col">
+          <span className="font-mono text-[10px] font-black uppercase tracking-widest text-primary">TRX-{t.id.slice(-6).toUpperCase()}</span>
+          <span className="text-[9px] text-muted-foreground font-bold mt-1 uppercase tracking-tighter flex items-center gap-1">
+            <Clock className="h-2.5 w-2.5" /> {new Date(t.date).toLocaleDateString()}
+          </span>
+        </div>
+      )
+    },
+    {
+      header: "Seller Identity",
+      accessorKey: "sellerName",
+      cell: (t: Transaction) => (
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-muted border border-border flex items-center justify-center text-muted-foreground shadow-inner">
+            <Store className="h-4 w-4" />
+          </div>
+          <div className="flex flex-col">
+            <span className="font-bold text-foreground leading-tight text-xs">{t.sellerName}</span>
+            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">ID: {t.sellerId.slice(-6)}</span>
+          </div>
+        </div>
+      )
+    },
+    {
+      header: "Flow",
+      accessorKey: "flag",
+      cell: (t: Transaction) => (
+        <Badge variant="outline" className={`text-[10px] font-black uppercase tracking-widest border-2 ${t.flag === 'credit'
+            ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+            : 'bg-rose-500/10 text-rose-600 border-rose-500/20'
+          }`}>
+          {t.flag === 'credit' ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownLeft className="h-3 w-3 mr-1" />}
+          {t.flag}
+        </Badge>
+      )
+    },
+    {
+      header: "Monetary Value",
+      accessorKey: "amount",
+      cell: (t: Transaction) => (
+        <div className={`flex items-center gap-1 font-black font-mono text-xs ${t.flag === 'credit' ? 'text-emerald-600' : 'text-rose-600'}`}>
+          {t.flag === 'credit' ? '+' : '-'} <IndianRupee className="h-3 w-3" /> {t.amount.toFixed(2)}
+        </div>
+      )
+    },
+    {
+      header: "Intelligence / Status",
+      accessorKey: "remark",
+      cell: (t: Transaction) => (
+        <div className="flex flex-col">
+          <p className="text-[10px] text-muted-foreground italic truncate max-w-[180px] leading-relaxed">
+            {t.remark || t.type || "System generated protocol."}
+          </p>
+          <div className="flex items-center gap-1.5 mt-1">
+            <div className={`h-1.5 w-1.5 rounded-full ${t.status === 'Completed' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+            <span className="text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground/80">{t.status}</span>
+          </div>
+        </div>
+      )
     }
-  }, [
-    selectedSeller,
-    currentPage,
-    entriesPerPage,
-    isAuthenticated,
-    token,
-    sellers,
-  ]);
+  ];
 
-  const handleSort = (column: string) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortColumn(column);
-      setSortDirection("asc");
-    }
-  };
-
-  // Filter transactions based on search term
-  const filteredTransactions = transactions.filter(
-    (transaction) =>
-      transaction.sellerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (transaction.orderId &&
-        transaction.orderId.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (transaction.productName &&
-        transaction.productName
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase())) ||
-      transaction.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (transaction.remark &&
-        transaction.remark.toLowerCase().includes(searchTerm.toLowerCase()))
+  const filteredTransactions = transactions.filter(t =>
+    t.sellerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    t.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (t.remark && t.remark.toLowerCase().includes(searchTerm.toLowerCase()))
   );
-
-  // Sort transactions
-  if (sortColumn) {
-    filteredTransactions.sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
-
-      switch (sortColumn) {
-        case "sellerName":
-          aValue = a.sellerName;
-          bValue = b.sellerName;
-          break;
-        case "amount":
-          aValue = a.amount;
-          bValue = b.amount;
-          break;
-        case "date":
-          aValue = new Date(a.date).getTime();
-          bValue = new Date(b.date).getTime();
-          break;
-        case "status":
-          aValue = a.status;
-          bValue = b.status;
-          break;
-        default:
-          return 0;
-      }
-
-      if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
-      if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
-      return 0;
-    });
-  }
-
-  const totalPages = Math.ceil(filteredTransactions.length / entriesPerPage);
-  const startIndex = (currentPage - 1) * entriesPerPage;
-  const endIndex = startIndex + entriesPerPage;
-  const displayedTransactions = filteredTransactions.slice(
-    startIndex,
-    endIndex
-  );
-
-  const handleExport = () => {
-    alert("Export functionality will be implemented here");
-  };
-
-  const handleClearDate = () => {
-    setFromDate("");
-    setToDate("");
-  };
-
-  const methods = ["All", "Credit", "Debit", "Bank Transfer"];
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div className="bg-teal-600 px-4 sm:px-6 py-4 rounded-t-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
-        <h1 className="text-white text-xl sm:text-2xl font-semibold">
-          View Seller List
-        </h1>
-        <button className="bg-white text-teal-600 border-2 border-teal-600 hover:bg-teal-50 px-4 py-2 rounded text-sm font-medium flex items-center gap-2 transition-colors">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-          Add Fund Transfer
-        </button>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Seller Ledger Audit"
+        description="Monitor global commerce flow and manual fund adjustments across the seller network."
+      >
+        <Button className="gap-2 font-black uppercase tracking-widest h-10 px-6 shadow-lg shadow-primary/20">
+          <History className="h-4 w-4" /> Global Timeline
+        </Button>
+      </PageHeader>
 
-      {/* Main Content Card */}
-      <div className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
-        {/* Filters */}
-        <div className="p-4 sm:p-6 border-b border-neutral-200">
-          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-            {/* Left Side Filters */}
-            <div className="flex flex-col sm:flex-row gap-3 flex-1 flex-wrap">
-              {/* From - To Date */}
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-neutral-700 whitespace-nowrap">
-                  From - To Date:
-                </label>
-                <div className="flex items-center gap-2">
-                  <div className="relative">
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400">
-                      <rect
-                        x="3"
-                        y="4"
-                        width="18"
-                        height="18"
-                        rx="2"
-                        ry="2"></rect>
-                      <line x1="16" y1="2" x2="16" y2="6"></line>
-                      <line x1="8" y1="2" x2="8" y2="6"></line>
-                      <line x1="3" y1="10" x2="21" y2="10"></line>
-                    </svg>
-                    <input
-                      type="text"
-                      value={fromDate}
-                      onChange={(e) => setFromDate(e.target.value)}
-                      placeholder="MM/DD/YYYY"
-                      className="pl-10 pr-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 min-w-[140px]"
-                    />
-                  </div>
-                  <span className="text-neutral-500">-</span>
-                  <div className="relative">
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400">
-                      <rect
-                        x="3"
-                        y="4"
-                        width="18"
-                        height="18"
-                        rx="2"
-                        ry="2"></rect>
-                      <line x1="16" y1="2" x2="16" y2="6"></line>
-                      <line x1="8" y1="2" x2="8" y2="6"></line>
-                      <line x1="3" y1="10" x2="21" y2="10"></line>
-                    </svg>
-                    <input
-                      type="text"
-                      value={toDate}
-                      onChange={(e) => setToDate(e.target.value)}
-                      placeholder="MM/DD/YYYY"
-                      className="pl-10 pr-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 min-w-[140px]"
-                    />
-                  </div>
-                  <button
-                    onClick={handleClearDate}
-                    className="px-3 py-2 bg-neutral-700 hover:bg-neutral-800 text-white rounded text-sm transition-colors">
-                    Clear
-                  </button>
-                </div>
-              </div>
-
-              {/* Filter by Seller */}
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-neutral-700 whitespace-nowrap">
-                  Filter by Seller:
-                </label>
-                <select
-                  value={selectedSeller}
-                  onChange={(e) => {
-                    setSelectedSeller(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  disabled={loading}
-                  className="px-3 py-2 border border-neutral-300 rounded text-sm bg-white focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 min-w-[130px] disabled:bg-neutral-100 disabled:cursor-not-allowed">
-                  <option value="all">All Sellers</option>
-                  {sellers.map((seller) => (
-                    <option key={seller._id} value={seller._id}>
-                      {seller.sellerName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Filter by Method */}
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-neutral-700 whitespace-nowrap">
-                  Filter by Method:
-                </label>
-                <select
-                  value={selectedMethod}
-                  onChange={(e) => {
-                    setSelectedMethod(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="px-3 py-2 border border-neutral-300 rounded text-sm bg-white focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 min-w-[100px]">
-                  {methods.map((method) => (
-                    <option
-                      key={method}
-                      value={method === "All" ? "all" : method}>
-                      {method}
-                    </option>
-                  ))}
-                </select>
+      <Card className="border-border bg-card shadow-sm overflow-hidden">
+        <CardHeader className="bg-muted/10 border-b border-border space-y-4 pb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Period From</Label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+                <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="pl-9 h-11 bg-card border-border" />
               </div>
             </div>
-
-            {/* Right Side Controls */}
-            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-              {/* Per Page */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-neutral-700">Per Page:</span>
-                <select
-                  value={entriesPerPage}
-                  onChange={(e) => {
-                    setEntriesPerPage(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="px-2 py-1 border border-neutral-300 rounded text-sm bg-white focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500">
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Period To</Label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+                <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="pl-9 h-11 bg-card border-border" />
               </div>
-
-              {/* Export Button */}
-              <button
-                onClick={handleExport}
-                className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded text-sm font-medium flex items-center gap-2 transition-colors">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="7 10 12 15 17 10"></polyline>
-                  <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-                Export
-                <svg
-                  width="10"
-                  height="10"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round">
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-              </button>
-
-              {/* Search */}
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-neutral-700">Search:</label>
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  placeholder="Search:"
-                  className="px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 min-w-[150px]"
-                />
-              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Select Marketplace Node</Label>
+              <Select value={selectedSeller} onValueChange={setSelectedSeller}>
+                <SelectTrigger className="h-11 bg-card border-border text-xs">
+                  <SelectValue placeholder="All Sellers" />
+                </SelectTrigger>
+                <SelectContent className="max-h-80">
+                  <SelectItem value="all">Global (Top Performers)</SelectItem>
+                  {sellers.map(s => <SelectItem key={s._id} value={s._id}>{s.sellerName} [{s.storeName}]</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Transaction Logic</Label>
+              <Select value={selectedMethod} onValueChange={setSelectedMethod}>
+                <SelectTrigger className="h-11 bg-card border-border text-xs">
+                  <SelectValue placeholder="All Logic" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Comprehensive</SelectItem>
+                  <SelectItem value="Credit">Credit Protocols</SelectItem>
+                  <SelectItem value="Debit">Debit Protocols</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
-        </div>
-
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1400px]">
-            <thead className="bg-neutral-50 border-b border-neutral-200">
-              <tr>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("id")}>
-                  <div className="flex items-center gap-2">
-                    Id
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("sellerName")}>
-                  <div className="flex items-center gap-2">
-                    Seller Name
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("orderId")}>
-                  <div className="flex items-center gap-2">
-                    Order Id
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("orderItemId")}>
-                  <div className="flex items-center gap-2">
-                    Order Item Id
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("productName")}>
-                  <div className="flex items-center gap-2">
-                    Product Name
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("variation")}>
-                  <div className="flex items-center gap-2">
-                    Variation
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("flag")}>
-                  <div className="flex items-center gap-2">
-                    Flag
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("amount")}>
-                  <div className="flex items-center gap-2">
-                    Amount
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("remark")}>
-                  <div className="flex items-center gap-2">
-                    Remark
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("date")}>
-                  <div className="flex items-center gap-2">
-                    Date
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-neutral-200">
-              {loading ? (
-                <tr>
-                  <td colSpan={10} className="px-4 sm:px-6 py-8 text-center">
-                    <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-600 mr-2"></div>
-                      Loading transactions...
-                    </div>
-                  </td>
-                </tr>
-              ) : error ? (
-                <tr>
-                  <td
-                    colSpan={10}
-                    className="px-4 sm:px-6 py-8 text-center text-red-600">
-                    {error}
-                  </td>
-                </tr>
-              ) : displayedTransactions.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={10}
-                    className="px-4 sm:px-6 py-8 text-center text-sm text-neutral-500">
-                    No transactions found
-                  </td>
-                </tr>
-              ) : (
-                displayedTransactions.map((transaction) => (
-                  <tr key={transaction.id} className="hover:bg-neutral-50">
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-900">
-                      {transaction.id.slice(-6)}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-900 font-medium">
-                      {transaction.sellerName}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-600">
-                      {transaction.orderId || "-"}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-600">
-                      {transaction.orderItemId || "-"}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-600">
-                      {transaction.productName || transaction.type}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-600">
-                      {transaction.variation || "-"}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${transaction.flag === "credit"
-                          ? "bg-green-100 text-green-800"
-                          : transaction.flag === "debit"
-                            ? "bg-red-100 text-red-800"
-                            : "bg-yellow-100 text-yellow-800"
-                          }`}>
-                        {transaction.flag.charAt(0).toUpperCase() +
-                          transaction.flag.slice(1)}
-                      </span>
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-900 font-medium">
-                      ₹{transaction.amount.toFixed(2)}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-600">
-                      {transaction.remark || transaction.status}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-600">
-                      {new Date(transaction.date).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+              <Input
+                placeholder="Search by ref, seller or remark..."
+                className="pl-9 h-10 bg-muted/20 border-border shadow-inner"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={rowsPerPage} onValueChange={setRowsPerPage}>
+                <SelectTrigger className="w-24 h-10 bg-muted/20 border-border text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10 Rows</SelectItem>
+                  <SelectItem value="25">25 Rows</SelectItem>
+                  <SelectItem value="50">50 Rows</SelectItem>
+                </SelectContent>
+              </Select>
+              {(searchTerm || fromDate || toDate || selectedSeller !== 'all') && (
+                <Button variant="ghost" size="sm" className="h-10 text-muted-foreground hover:text-foreground" onClick={() => {
+                  setSearchTerm(""); setFromDate(""); setToDate(""); setSelectedSeller("all");
+                }}>
+                  <FilterX className="h-4 w-4 mr-2" /> Reset
+                </Button>
               )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination Footer */}
-        <div className="px-4 sm:px-6 py-3 border-t border-neutral-200 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0">
-          <div className="text-xs sm:text-sm text-neutral-700">
-            Showing {startIndex + 1} to{" "}
-            {Math.min(endIndex, filteredTransactions.length)} of{" "}
-            {filteredTransactions.length} entries
+              <Button variant="outline" size="sm" className="h-10 border-border shadow-sm flex items-center gap-2 font-bold text-xs uppercase tracking-tight" onClick={() => showToast("Exporting matrix...", "info")}>
+                <Download className="h-4 w-4" /> Export
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-              disabled={currentPage === 1 || totalPages === 0}
-              className={`p-2 border border-neutral-300 rounded ${currentPage === 1 || totalPages === 0
-                ? "text-neutral-400 cursor-not-allowed bg-neutral-50"
-                : "text-neutral-700 hover:bg-neutral-50"
-                }`}
-              aria-label="Previous page">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M15 18L9 12L15 6"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-            <button
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-              }
-              disabled={currentPage === totalPages || totalPages === 0}
-              className={`p-2 border border-neutral-300 rounded ${currentPage === totalPages || totalPages === 0
-                ? "text-neutral-400 cursor-not-allowed bg-neutral-50"
-                : "text-neutral-700 hover:bg-neutral-50"
-                }`}
-              aria-label="Next page">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M9 18L15 12L9 6"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
+
+          <DataTable
+            columns={columns}
+            data={filteredTransactions}
+            loading={loading}
+            emptyMessage="No transaction telemetry detected for the selected parameters."
+          />
+
+          <div className="flex items-center justify-between mt-8 pt-4 border-t border-border">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/50">Ledger Stream Active</span>
+              <span className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground/40 mt-0.5">Reflecting last 100 manual events.</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1 || loading}
+                className="h-9 w-9 p-0"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="h-9 w-9 flex items-center justify-center bg-primary text-white font-black text-xs rounded-xl shadow-lg ring-4 ring-primary/10">
+                {currentPage}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => p + 1)}
+                disabled={loading || filteredTransactions.length < parseInt(rowsPerPage)}
+                className="h-9 w-9 p-0"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex items-center justify-center gap-8 py-12 opacity-10 pointer-events-none grayscale">
+        <div className="flex items-center gap-2">
+          <SearchCode className="h-6 w-6" />
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black uppercase tracking-widest">TRACE_BACK CORE</span>
+            <span className="text-[8px] font-bold">Node sync enabled</span>
           </div>
         </div>
-      </div>
-
-      {/* Footer */}
-      <div className="text-center text-sm text-neutral-500 py-4">
-        Copyright Â© 2025. Developed By{" "}
-        <a href="#" className="text-teal-600 hover:text-teal-700">
-          Dhakad Snazzy - 10 Minute App
-        </a>
+        <div className="flex items-center gap-2">
+          <Receipt className="h-6 w-6" />
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black uppercase tracking-widest">LEDGER_PROTOCOL</span>
+            <span className="text-[8px] font-bold">v9.2 Architecture</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <FileText className="h-6 w-6" />
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black uppercase tracking-widest">SOC-2 COMPLIANCE</span>
+            <span className="text-[8px] font-bold">Encrypted Audit Logs</span>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
-

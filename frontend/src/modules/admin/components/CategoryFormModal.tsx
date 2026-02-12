@@ -86,11 +86,7 @@ export default function CategoryFormModal({
     try {
       setLoadingHeaderCategories(true);
       const categories = await getHeaderCategoriesAdmin();
-      // Filter only Published header categories
-      const publishedCategories = categories.filter(
-        (cat) => cat.status === "Published"
-      );
-      setHeaderCategories(publishedCategories);
+      setHeaderCategories(categories);
     } catch (error) {
       console.error("Error fetching header categories:", error);
       setHeaderCategories([]);
@@ -569,7 +565,8 @@ export default function CategoryFormModal({
                       </option>
                       {headerCategories.map((headerCat) => (
                         <option key={headerCat._id} value={headerCat._id}>
-                          {headerCat.name}
+                          {headerCat.name}{" "}
+                          {headerCat.status !== "Published" ? "(Unpublished)" : ""}
                         </option>
                       ))}
                     </select>

@@ -696,6 +696,38 @@ export const deleteSubCategory = asyncHandler(
   }
 );
 
+/**
+ * Update subcategory order
+ */
+export const updateSubCategoryOrder = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { subcategories } = req.body; // Array of { id, order }
+
+    if (!Array.isArray(subcategories)) {
+      return res.status(400).json({
+        success: false,
+        message: "Subcategories array is required",
+      });
+    }
+
+    const updatePromises = subcategories.map(
+      ({ id, order }: { id: string; order: number }) =>
+        SubCategory.findByIdAndUpdate(
+          id,
+          { order, updatedAt: new Date() },
+          { new: true }
+        )
+    );
+
+    await Promise.all(updatePromises);
+
+    return res.status(200).json({
+      success: true,
+      message: "Subcategory order updated successfully",
+    });
+  }
+);
+
 // ==================== Brand Controllers ====================
 
 /**

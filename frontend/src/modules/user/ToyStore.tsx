@@ -2,7 +2,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useLocation } from '../../hooks/useLocation';
 import { motion, AnimatePresence } from 'framer-motion';
-import Button from '../../components/ui/button';
+import { Button } from '../../components/ui/button';
 import { Product } from '../../types/domain';
 import { useEffect, useState } from 'react';
 import { getProducts } from '../../services/api/customerProductService';

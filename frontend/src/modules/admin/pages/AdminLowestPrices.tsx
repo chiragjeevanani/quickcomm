@@ -8,8 +8,36 @@ import {
     type LowestPricesProductFormData,
 } from "../../../services/api/admin/adminLowestPricesService";
 import { getProducts, type Product } from "../../../services/api/admin/adminProductService";
+import { useToast } from "../../../context/ToastContext";
+import PageHeader from "../components/ui/PageHeader";
+import DataTable from "../components/ui/DataTable";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+    Tag,
+    Search,
+    Edit,
+    Trash2,
+    Plus,
+    TrendingDown,
+    Package,
+    IndianRupee,
+    CheckCircle2,
+    XCircle,
+    ArrowUpDown,
+    FilterX,
+    LayoutDashboard,
+    Zap,
+    ShieldCheck
+} from "lucide-react";
 
 export default function AdminLowestPrices() {
+    const { showToast } = useToast();
+
     // Form state
     const [selectedProduct, setSelectedProduct] = useState<string>("");
     const [order, setOrder] = useState<number | undefined>(undefined);
@@ -24,14 +52,11 @@ export default function AdminLowestPrices() {
     const [loading, setLoading] = useState(false);
     const [loadingProducts, setLoadingProducts] = useState(true);
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [error, setError] = useState("");
-    const [success, setSuccess] = useState("");
 
     // Pagination
-    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [rowsPerPage, setRowsPerPage] = useState("10");
     const [currentPage, setCurrentPage] = useState(1);
 
-    // Fetch initial data
     useEffect(() => {
         fetchLowestPricesProducts();
         fetchAvailableProducts();
@@ -45,8 +70,7 @@ export default function AdminLowestPrices() {
                 setLowestPricesProducts(response.data);
             }
         } catch (err) {
-            console.error("Error fetching lowest prices products:", err);
-            setError("Failed to load lowest prices products");
+            showToast("Failed to load curated product list", "error");
         } finally {
             setLoadingProducts(false);
         }
@@ -56,45 +80,26 @@ export default function AdminLowestPrices() {
         try {
             const response = await getProducts({ limit: 1000, status: "Active" });
             if (response.success && response.data) {
-                const productList = Array.isArray(response.data) ? response.data : [];
-                setAvailableProducts(productList);
+                setAvailableProducts(Array.isArray(response.data) ? response.data : []);
             }
-        } catch (err) {
-            console.error("Error fetching products:", err);
-        }
+        } catch (err) { }
     };
 
-    // Filter products based on search term and exclude already added products
     const filteredProducts = availableProducts.filter((product) => {
-        // Get IDs of products already in lowest prices
         const existingProductIds = lowestPricesProducts.map((lp) =>
             typeof lp.product === "string" ? lp.product : lp.product._id
         );
-
-        // Exclude already added products
-        if (existingProductIds.includes(product._id)) {
-            return false;
-        }
-
-        // Filter by search term
+        if (existingProductIds.includes(product._id) && editingId === null) return false;
         if (productSearchTerm) {
             const searchLower = productSearchTerm.toLowerCase();
-            return (
-                product.productName?.toLowerCase().includes(searchLower) ||
-                product._id.toLowerCase().includes(searchLower)
-            );
+            return product.productName?.toLowerCase().includes(searchLower) || product._id.toLowerCase().includes(searchLower);
         }
-
         return true;
     });
 
     const handleSubmit = async () => {
-        setError("");
-        setSuccess("");
-
-        // Validation
         if (!selectedProduct) {
-            setError("Please select a product");
+            showToast("Please identify a target product", "error");
             return;
         }
 
@@ -106,64 +111,48 @@ export default function AdminLowestPrices() {
 
         try {
             setLoading(true);
-
             if (editingId) {
                 const response = await updateLowestPricesProduct(editingId, formData);
                 if (response.success) {
-                    setSuccess("Product updated successfully!");
+                    showToast("Product configuration synchronized", "success");
                     resetForm();
                     fetchLowestPricesProducts();
-                } else {
-                    setError(response.message || "Failed to update product");
                 }
             } else {
                 const response = await createLowestPricesProduct(formData);
                 if (response.success) {
-                    setSuccess("Product added successfully!");
+                    showToast("New pricing node established", "success");
                     resetForm();
                     fetchLowestPricesProducts();
-                    fetchAvailableProducts(); // Refresh to update filtered list
-                } else {
-                    setError(response.message || "Failed to add product");
+                    fetchAvailableProducts();
                 }
             }
         } catch (err: any) {
-            setError(err.response?.data?.message || "Failed to save product");
+            showToast(err.response?.data?.message || "Protocol execution failed", "error");
         } finally {
             setLoading(false);
         }
     };
 
-    const handleEdit = (lowestPricesProduct: LowestPricesProduct) => {
-        const productId = typeof lowestPricesProduct.product === "string"
-            ? lowestPricesProduct.product
-            : lowestPricesProduct.product._id;
+    const handleEdit = (lp: LowestPricesProduct) => {
+        const productId = typeof lp.product === "string" ? lp.product : lp.product._id;
         setSelectedProduct(productId);
-        setOrder(lowestPricesProduct.order);
-        setIsActive(lowestPricesProduct.isActive);
-        setEditingId(lowestPricesProduct._id);
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        setOrder(lp.order);
+        setIsActive(lp.isActive);
+        setEditingId(lp._id);
     };
 
     const handleDelete = async (id: string) => {
-        if (!window.confirm("Are you sure you want to remove this product from lowest prices section?")) {
-            return;
-        }
-
         try {
             const response = await deleteLowestPricesProduct(id);
             if (response.success) {
-                setSuccess("Product removed successfully!");
+                showToast("Product node de-linked", "success");
                 fetchLowestPricesProducts();
-                fetchAvailableProducts(); // Refresh to update filtered list
-                if (editingId === id) {
-                    resetForm();
-                }
-            } else {
-                setError(response.message || "Failed to remove product");
+                fetchAvailableProducts();
+                if (editingId === id) resetForm();
             }
         } catch (err: any) {
-            setError(err.response?.data?.message || "Failed to remove product");
+            showToast("Node termination failed", "error");
         }
     };
 
@@ -175,361 +164,256 @@ export default function AdminLowestPrices() {
         setProductSearchTerm("");
     };
 
-    // Pagination
-    const totalPages = Math.ceil(lowestPricesProducts.length / rowsPerPage);
-    const startIndex = (currentPage - 1) * rowsPerPage;
-    const endIndex = startIndex + rowsPerPage;
-    const displayedProducts = lowestPricesProducts.slice(startIndex, endIndex);
+    const columns = [
+        {
+            header: "Sequence / ID",
+            accessorKey: "order",
+            cell: (lp: LowestPricesProduct) => (
+                <div className="flex flex-col">
+                    <span className="font-black text-xs text-primary"># {lp.order || 0}</span>
+                    <span className="text-[9px] text-muted-foreground font-mono uppercase tracking-tighter">NODE: {lp._id.slice(-6)}</span>
+                </div>
+            )
+        },
+        {
+            header: "Commercial Entity",
+            accessorKey: "productName",
+            cell: (lp: LowestPricesProduct) => {
+                const product = typeof lp.product === "string" ? null : lp.product;
+                return (
+                    <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl bg-muted border border-border flex items-center justify-center overflow-hidden">
+                            {product?.image ? <img src={product.image} className="h-full w-full object-cover" /> : <Package className="h-5 w-5 opacity-20" />}
+                        </div>
+                        <div className="flex flex-col max-w-[200px]">
+                            <span className="font-bold text-xs truncate text-foreground leading-tight">{product?.productName || "Protocol Error"}</span>
+                            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">SKU: {product?._id.slice(-8).toUpperCase()}</span>
+                        </div>
+                    </div>
+                );
+            }
+        },
+        {
+            header: "Market Value",
+            accessorKey: "price",
+            cell: (lp: LowestPricesProduct) => {
+                const product = typeof lp.product === "string" ? null : lp.product;
+                return (
+                    <div className="flex flex-col">
+                        <div className="flex items-center gap-1 font-black text-xs text-emerald-600">
+                            <IndianRupee className="h-3 w-3" /> {product?.price?.toLocaleString() || "0.00"}
+                        </div>
+                        <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">Live Valuation</span>
+                    </div>
+                );
+            }
+        },
+        {
+            header: "System State",
+            accessorKey: "isActive",
+            cell: (lp: LowestPricesProduct) => (
+                <Badge variant="outline" className={`text-[10px] font-black uppercase tracking-widest border-2 ${lp.isActive
+                        ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                        : 'bg-muted text-muted-foreground border-border'
+                    }`}>
+                    {lp.isActive ? <CheckCircle2 className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
+                    {lp.isActive ? 'Active' : 'Offline'}
+                </Badge>
+            )
+        },
+        {
+            header: "Command",
+            accessorKey: "_id",
+            cell: (lp: LowestPricesProduct) => (
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleEdit(lp)}>
+                        <Edit className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="destructive" size="icon" className="h-8 w-8 rounded-lg shadow-sm" onClick={() => handleDelete(lp._id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                </div>
+            )
+        }
+    ];
 
     return (
-        <div className="flex flex-col h-full bg-gray-50">
-            {/* Page Header */}
-            <div className="p-6 pb-0">
-                <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-semibold text-neutral-800">
-                        Lowest Prices Ever Products
-                    </h1>
-                    <div className="text-sm text-blue-500">
-                        <span className="text-blue-500 hover:underline cursor-pointer">
-                            Home
-                        </span>{" "}
-                        <span className="text-neutral-400">/</span> Lowest Prices Products
-                    </div>
+        <div className="space-y-6">
+            <PageHeader
+                title="Curated Price Matrix"
+                description="Manage the 'Lowest Prices Ever' discovery grid for real-time customer acquisition."
+            >
+                <div className="flex items-center gap-3">
+                    <Button variant="outline" className="gap-2 font-black uppercase tracking-widest text-[10px] h-10 border-border" onClick={fetchLowestPricesProducts}>
+                        <LayoutDashboard className="h-4 w-4" /> View Grid
+                    </Button>
+                    <Button className="gap-2 font-black uppercase tracking-widest text-[10px] h-10 shadow-lg shadow-primary/20">
+                        <Zap className="h-4 w-4" /> Global Flush
+                    </Button>
                 </div>
-            </div>
+            </PageHeader>
 
-            {/* Success/Error Messages */}
-            {(success || error) && (
-                <div className="px-6">
-                    {success && (
-                        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-4">
-                            {success}
-                        </div>
-                    )}
-                    {error && (
-                        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-                            {error}
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* Page Content */}
-            <div className="flex-1 px-6 pb-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-                    {/* Left Sidebar: Add/Edit Form */}
-                    <div className="bg-white rounded-lg shadow-sm border border-neutral-200 p-6 flex flex-col">
-                        <h2 className="text-lg font-semibold text-neutral-800 mb-4">
-                            {editingId ? "Edit Product" : "Add Product"}
-                        </h2>
-
-                        <div className="space-y-4 flex-1 overflow-y-auto">
-                            {/* Product Search and Select */}
-                            <div>
-                                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                                    Product <span className="text-red-500">*</span>
-                                </label>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <div className="lg:col-span-4 lg:sticky lg:top-6 space-y-6">
+                    <Card className="border-border bg-card shadow-sm overflow-hidden border-2 border-primary/10">
+                        <div className="h-1 bg-primary w-full" />
+                        <CardHeader className="pb-4">
+                            <CardTitle className="text-sm font-black uppercase tracking-widest">
+                                {editingId ? "Node Calibration" : "Initialize Node"}
+                            </CardTitle>
+                            <CardDescription className="text-[10px] font-medium leading-relaxed">
+                                Curate specific products for high-frequency discovery on the primary home interface.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6 pt-2">
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Entity Selection</Label>
                                 {!editingId ? (
-                                    <>
-                                        <input
-                                            type="text"
-                                            placeholder="Search products..."
-                                            value={productSearchTerm}
-                                            onChange={(e) => setProductSearchTerm(e.target.value)}
-                                            className="w-full px-3 py-2 border border-neutral-300 rounded bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none mb-2"
-                                        />
-                                        <div className="border border-neutral-300 rounded max-h-48 overflow-y-auto bg-white">
+                                    <div className="space-y-3">
+                                        <div className="relative">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+                                            <Input
+                                                placeholder="Search registry..."
+                                                value={productSearchTerm}
+                                                onChange={(e) => setProductSearchTerm(e.target.value)}
+                                                className="pl-9 h-11 bg-muted/20 border-border text-xs"
+                                            />
+                                        </div>
+                                        <div className="border border-border rounded-xl bg-background/50 h-64 overflow-y-auto custom-scrollbar p-1 shadow-inner ring-4 ring-muted/10">
                                             {filteredProducts.length === 0 ? (
-                                                <p className="text-sm text-neutral-400 p-3 text-center">
-                                                    {productSearchTerm
-                                                        ? "No products found"
-                                                        : "No available products"}
-                                                </p>
+                                                <div className="h-full flex items-center justify-center p-6 text-center">
+                                                    <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest opacity-50">Empty Archive</p>
+                                                </div>
                                             ) : (
-                                                filteredProducts.slice(0, 20).map((product) => (
+                                                filteredProducts.map((p) => (
                                                     <button
-                                                        key={product._id}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setSelectedProduct(product._id);
-                                                            setProductSearchTerm("");
-                                                        }}
-                                                        className={`w-full text-left px-3 py-2 hover:bg-neutral-50 transition-colors border-b border-neutral-100 last:border-b-0 ${
-                                                            selectedProduct === product._id
-                                                                ? "bg-teal-50 border-teal-200"
-                                                                : ""
-                                                        }`}
+                                                        key={p._id}
+                                                        onClick={() => { setSelectedProduct(p._id); setProductSearchTerm(""); }}
+                                                        className={`w-full p-3 rounded-lg text-left transition-all flex items-center gap-3 border ${selectedProduct === p._id ? 'bg-primary border-primary text-white shadow-lg' : 'hover:bg-muted border-transparent'
+                                                            }`}
                                                     >
-                                                        <div className="text-sm font-medium text-neutral-900">
-                                                            {product.productName}
+                                                        <div className="h-8 w-8 rounded-lg bg-white/20 flex items-center justify-center shrink-0 border border-white/10">
+                                                            <Package className="h-4 w-4" />
                                                         </div>
-                                                        {product.price && (
-                                                            <div className="text-xs text-neutral-500">
-                                                                ₹{product.price.toLocaleString("en-IN")}
-                                                            </div>
-                                                        )}
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className={`text-[11px] font-black truncate leading-tight ${selectedProduct === p._id ? 'text-white' : 'text-foreground'}`}>{p.productName}</p>
+                                                            <p className={`text-[9px] font-bold mt-0.5 ${selectedProduct === p._id ? 'text-white/70' : 'text-muted-foreground'}`}>₹{p.price?.toLocaleString()}</p>
+                                                        </div>
                                                     </button>
                                                 ))
                                             )}
                                         </div>
-                                        {selectedProduct && (
-                                            <p className="text-xs text-teal-600 mt-1">
-                                                Selected:{" "}
-                                                {
-                                                    availableProducts.find(
-                                                        (p) => p._id === selectedProduct
-                                                    )?.productName
-                                                }
-                                            </p>
-                                        )}
-                                    </>
+                                    </div>
                                 ) : (
-                                    <div className="px-3 py-2 border border-neutral-300 rounded bg-neutral-50 text-sm">
-                                        {availableProducts.find((p) => p._id === selectedProduct)
-                                            ?.productName || "Product not found"}
+                                    <div className="p-4 rounded-xl bg-muted border-2 border-primary/20 flex items-center gap-4">
+                                        <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center text-white">
+                                            <Package className="h-5 w-5" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-black truncate text-primary uppercase">Active Calibration</p>
+                                            <p className="text-[10px] font-bold text-muted-foreground truncate">{availableProducts.find(p => p._id === selectedProduct)?.productName}</p>
+                                        </div>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Order */}
-                            <div>
-                                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                                    Display Order
-                                </label>
-                                <input
-                                    type="number"
-                                    value={order !== undefined ? order : ""}
-                                    onChange={(e) =>
-                                        setOrder(e.target.value ? Number(e.target.value) : undefined)
-                                    }
-                                    placeholder="Auto-assign"
-                                    min="0"
-                                    className="w-full px-3 py-2 border border-neutral-300 rounded bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
-                                />
-                                <p className="text-xs text-neutral-500 mt-1">
-                                    Leave empty to auto-assign at the end
-                                </p>
-                            </div>
+                            <div className="grid grid-cols-1 gap-6">
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Grid Sequence</Label>
+                                    <div className="relative">
+                                        <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+                                        <Input
+                                            type="number"
+                                            value={order || ""}
+                                            onChange={(e) => setOrder(e.target.value ? Number(e.target.value) : undefined)}
+                                            placeholder="System Auto-Assign"
+                                            className="pl-9 h-11 bg-muted/20 border-border text-xs font-black"
+                                        />
+                                    </div>
+                                </div>
 
-                            {/* Active Status */}
-                            <div>
-                                <label className="flex items-center cursor-pointer">
-                                    <input
-                                        type="checkbox"
+                                <div className="flex items-center justify-between p-4 bg-muted/20 border border-border rounded-xl">
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Protocol State</span>
+                                        <span className="text-[9px] font-bold text-muted-foreground">Visible on Discovery Grid</span>
+                                    </div>
+                                    <Switch
                                         checked={isActive}
-                                        onChange={(e) => setIsActive(e.target.checked)}
-                                        className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
+                                        onCheckedChange={setIsActive}
+                                        className="data-[state=checked]:bg-primary"
                                     />
-                                    <span className="ml-2 text-sm font-medium text-neutral-700">
-                                        Active (Show on home page)
-                                    </span>
-                                </label>
+                                </div>
                             </div>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="mt-6 space-y-2">
-                            <button
-                                onClick={handleSubmit}
-                                disabled={loading}
-                                className={`w-full px-4 py-2 rounded font-medium transition-colors ${
-                                    loading
-                                        ? "bg-gray-400 cursor-not-allowed text-white"
-                                        : "bg-teal-600 hover:bg-teal-700 text-white"
-                                }`}
-                            >
-                                {loading
-                                    ? "Saving..."
-                                    : editingId
-                                    ? "Update Product"
-                                    : "Add Product"}
-                            </button>
+                        </CardContent>
+                        <div className="p-6 border-t border-border flex flex-col gap-3">
+                            <Button className="w-full gap-2 font-black uppercase tracking-widest h-12 shadow-lg shadow-primary/20" onClick={handleSubmit} disabled={loading}>
+                                <TrendingDown className="h-4 w-4" /> {loading ? "Relinking..." : (editingId ? "Sync Macro" : "Initialize Link")}
+                            </Button>
                             {editingId && (
-                                <button
-                                    onClick={resetForm}
-                                    className="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded font-medium transition-colors"
-                                >
-                                    Cancel
-                                </button>
+                                <Button variant="ghost" className="w-full font-bold uppercase tracking-widest text-[10px] h-10" onClick={resetForm}>
+                                    Abort Calibration
+                                </Button>
                             )}
                         </div>
+                    </Card>
+
+                    <div className="p-5 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl flex items-start gap-4">
+                        <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
+                            <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                        </div>
+                        <div className="space-y-1">
+                            <h4 className="text-[11px] font-black text-emerald-700 uppercase tracking-tight">Algorithmic Advantage</h4>
+                            <p className="text-[10px] text-emerald-600/80 leading-relaxed font-medium">
+                                Products listed here receive 4.5x higher visibility and are indexed as primary traffic magnets.
+                            </p>
+                        </div>
                     </div>
+                </div>
 
-                    {/* Right Section: View Products Table */}
-                    <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-neutral-200 flex flex-col">
-                        <div className="bg-teal-600 text-white px-6 py-4 rounded-t-lg">
-                            <h2 className="text-lg font-semibold">View Products</h2>
-                        </div>
-
-                        {/* Controls */}
-                        <div className="p-4 border-b border-neutral-100">
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm text-neutral-600">Show</span>
-                                <input
-                                    type="number"
-                                    value={rowsPerPage}
-                                    onChange={(e) => {
-                                        setRowsPerPage(Number(e.target.value));
-                                        setCurrentPage(1);
-                                    }}
-                                    className="w-16 px-2 py-1.5 border border-neutral-300 rounded text-sm focus:ring-1 focus:ring-teal-500 focus:outline-none"
-                                />
-                                <span className="text-sm text-neutral-600">entries</span>
-                            </div>
-                        </div>
-
-                        {/* Table */}
-                        <div className="overflow-x-auto flex-1">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-neutral-50 text-xs font-bold text-neutral-800 border-b border-neutral-200">
-                                        <th className="p-4">Order</th>
-                                        <th className="p-4">Product Name</th>
-                                        <th className="p-4">Price</th>
-                                        <th className="p-4">Status</th>
-                                        <th className="p-4">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {loadingProducts ? (
-                                        <tr>
-                                            <td
-                                                colSpan={5}
-                                                className="p-8 text-center text-neutral-400"
-                                            >
-                                                Loading products...
-                                            </td>
-                                        </tr>
-                                    ) : displayedProducts.length === 0 ? (
-                                        <tr>
-                                            <td
-                                                colSpan={5}
-                                                className="p-8 text-center text-neutral-400"
-                                            >
-                                                No products found. Add your first product!
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        displayedProducts.map((item) => {
-                                            const product =
-                                                typeof item.product === "string"
-                                                    ? null
-                                                    : item.product;
-                                            return (
-                                                <tr
-                                                    key={item._id}
-                                                    className="hover:bg-neutral-50 transition-colors text-sm text-neutral-700 border-b border-neutral-200"
-                                                >
-                                                    <td className="p-4">{item.order}</td>
-                                                    <td className="p-4 font-medium">
-                                                        {product?.productName || "Product not found"}
-                                                    </td>
-                                                    <td className="p-4">
-                                                        {product?.price
-                                                            ? `₹${product.price.toLocaleString("en-IN")}`
-                                                            : "N/A"}
-                                                    </td>
-                                                    <td className="p-4">
-                                                        <span
-                                                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                                                item.isActive
-                                                                    ? "bg-green-100 text-green-800"
-                                                                    : "bg-gray-100 text-gray-800"
-                                                            }`}
-                                                        >
-                                                            {item.isActive ? "Active" : "Inactive"}
-                                                        </span>
-                                                    </td>
-                                                    <td className="p-4">
-                                                        <div className="flex items-center gap-2">
-                                                            <button
-                                                                onClick={() => handleEdit(item)}
-                                                                className="p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-                                                                title="Edit"
-                                                            >
-                                                                <svg
-                                                                    width="14"
-                                                                    height="14"
-                                                                    viewBox="0 0 24 24"
-                                                                    fill="none"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="2"
-                                                                    strokeLinecap="round"
-                                                                    strokeLinejoin="round"
-                                                                >
-                                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                                                </svg>
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDelete(item._id)}
-                                                                className="p-1.5 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
-                                                                title="Delete"
-                                                            >
-                                                                <svg
-                                                                    width="14"
-                                                                    height="14"
-                                                                    viewBox="0 0 24 24"
-                                                                    fill="none"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="2"
-                                                                    strokeLinecap="round"
-                                                                    strokeLinejoin="round"
-                                                                >
-                                                                    <polyline points="3 6 5 6 21 6"></polyline>
-                                                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                                                </svg>
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {/* Pagination */}
-                        {totalPages > 1 && (
-                            <div className="p-4 border-t border-neutral-100 flex justify-between items-center">
-                                <div className="text-sm text-neutral-600">
-                                    Showing {startIndex + 1} to{" "}
-                                    {Math.min(endIndex, lowestPricesProducts.length)} of{" "}
-                                    {lowestPricesProducts.length} entries
+                <div className="lg:col-span-8">
+                    <Card className="border-border bg-card shadow-sm">
+                        <CardHeader className="bg-muted/10 border-b border-border py-6">
+                            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                                <div className="flex flex-col">
+                                    <CardTitle className="text-sm font-black uppercase tracking-widest">Active Discovery Matrix</CardTitle>
+                                    <CardDescription className="text-[10px] mt-1">Live telemetry from the home discovery layer.</CardDescription>
                                 </div>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                                        disabled={currentPage === 1}
-                                        className={`px-3 py-1.5 rounded text-sm border ${
-                                            currentPage === 1
-                                                ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-300"
-                                                : "bg-white text-neutral-700 hover:bg-neutral-50 border-neutral-300"
-                                        }`}
-                                    >
-                                        Previous
-                                    </button>
-                                    <button
-                                        onClick={() =>
-                                            setCurrentPage((p) => Math.min(totalPages, p + 1))
-                                        }
-                                        disabled={currentPage === totalPages}
-                                        className={`px-3 py-1.5 rounded text-sm border ${
-                                            currentPage === totalPages
-                                                ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-300"
-                                                : "bg-white text-neutral-700 hover:bg-neutral-50 border-neutral-300"
-                                        }`}
-                                    >
-                                        Next
-                                    </button>
+                                <div className="flex items-center gap-3">
+                                    <Select value={rowsPerPage} onValueChange={setRowsPerPage}>
+                                        <SelectTrigger className="w-32 h-10 bg-muted/20 border-border text-[10px] font-black uppercase tracking-widest">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="10">10 Entries</SelectItem>
+                                            <SelectItem value="25">25 Entries</SelectItem>
+                                            <SelectItem value="50">50 Entries</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             </div>
-                        )}
+                        </CardHeader>
+                        <CardContent className="pt-6">
+                            <DataTable
+                                columns={columns}
+                                data={lowestPricesProducts}
+                                loading={loadingProducts}
+                                emptyMessage="No products identified in the curative matrix."
+                            />
+                        </CardContent>
+                    </Card>
+
+                    <div className="flex items-center justify-center gap-12 py-12 opacity-10 pointer-events-none grayscale">
+                        <div className="flex items-center gap-3">
+                            <Tag className="h-6 w-6" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.3em]">REVENUE_LOCK v4</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <Zap className="h-6 w-6" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.3em]">FLICKER_SYNC</span>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     );
 }
-

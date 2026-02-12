@@ -1,167 +1,157 @@
 ﻿import { useState } from 'react';
+import PageHeader from "../components/ui/PageHeader";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "../../../context/ToastContext";
+import {
+  Truck,
+  Eye,
+  Save,
+  Trash2,
+  Scale,
+  ShieldAlert,
+  History,
+  RefreshCw,
+  CheckCircle2,
+  Briefcase
+} from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function AdminDeliveryAppPolicy() {
-  const [policyContent, setPolicyContent] = useState(`Welcome to Dhakad Snazzy - 10 Minute App Delivery Partner Program!
+  const { showToast } = useToast();
+  const [policyContent, setPolicyContent] = useState(`Welcome to QuickCommerce Logistics Program!
 
-By using our delivery app, you agree to the following terms and conditions:
+By engaging as a delivery agent, you agree to the following operational parameters:
 
-1. Delivery Partner Registration
-   - You must provide accurate and complete information during registration
-   - You must have a valid driver's license and vehicle registration
-   - Background checks may be required before approval
-   - You are responsible for maintaining the confidentiality of your account credentials
+1. Agent Registry
+   - Background check verification required for node activation.
+   - Valid driver's license and vehicle registry mandatory.
+   - Account sharing is strictly prohibited.
 
-2. Delivery Responsibilities
-   - You must accept and complete deliveries in a timely manner
-   - You must handle all orders with care and ensure product integrity
-   - You must follow the delivery route provided by the app
-   - You must obtain customer signature or confirmation upon delivery
+2. Logistics Execution
+   - Acceptance rate must remain above 80% for Tier 1 access.
+   - GPS telemetry must be enabling during active cycles.
+   - Delivery routes must follow spatial optimization logic.
 
-3. Vehicle and Equipment Requirements
-   - You must maintain a valid driver's license and vehicle insurance
-   - Your vehicle must be in good working condition
-   - You must have a smartphone with GPS capabilities
-   - You must maintain proper delivery equipment (bags, containers, etc.)
+3. Vehicle Standards
+   - Insured and road-legal vehicles only.
+   - Mobile thermal containers required for perishables.
+   - Digital device with real-time sync connectivity.
 
-4. Payment and Earnings
-   - Delivery fees are calculated based on distance and order value
-   - Earnings are credited to your account after successful delivery
-   - Payment is processed weekly via your registered payment method
-   - You are responsible for reporting your earnings for tax purposes
+4. Settlement & Earnings
+   - Distance-based and multi-drop bonus logic applied.
+   - Weekly treasury settlement protocols.
+   - Independent contractor status (Tax-Node responsible).
 
 5. Code of Conduct
-   - You must treat customers with respect and professionalism
-   - You must maintain a clean and presentable appearance
-   - You must not engage in any illegal activities
-   - You must follow all traffic laws and regulations
+   - Zero-tolerance for breach of professional protocol.
+   - Uniform compliance required for brand synchronization.
+   - Professional interaction with final-mile recipients.
 
-6. Safety Requirements
-   - You must prioritize safety at all times
-   - You must not use your phone while driving
-   - You must wear appropriate safety gear when required
-   - You must report any accidents or incidents immediately
+6. Safety Protocol
+   - Defensive driving macro prioritized.
+   - Device interaction while in motion is forbidden.
+   - Incident reporting required within 10 minutes of event.
 
-7. Availability and Scheduling
-   - You can set your own availability through the app
-   - You must honor accepted delivery assignments
-   - Cancellation of accepted orders may result in penalties
-   - You must maintain a minimum acceptance rate to remain active
+7. System Liability & Insurance
+   - Platform not liable for agent-induced kinetic events.
+   - Personal insurance is primary for all delivery cycles.
 
-8. Ratings and Reviews
-   - Customers may rate your service after delivery
-   - Low ratings may affect your access to delivery opportunities
-   - You can view and respond to customer feedback
-   - Maintaining high ratings is important for continued partnership
+8. Protocol Evolution
+   - Logistics parameters subject to real-time update.
 
-9. Termination
-   - We reserve the right to suspend or terminate your account for violations
-   - Violations include but are not limited to: fraud, theft, unprofessional conduct
-   - You may terminate your partnership at any time with proper notice
-
-10. Privacy and Data
-    - We respect your privacy and handle your data in accordance with our Privacy Policy
-    - Your location data is used only for delivery purposes
-    - Your personal information will not be shared with customers
-
-11. Limitation of Liability
-    - You are an independent contractor, not an employee
-    - You are responsible for your own taxes and insurance
-    - We are not liable for accidents or incidents during deliveries
-
-12. Changes to Terms
-    - We reserve the right to modify these terms at any time
-    - Continued use of the app constitutes acceptance of modified terms
-    - You will be notified of significant changes via the app or email
-
-For any questions or concerns, please contact our delivery partner support team.
-
-Last updated: January 2025`);
+Last updated: JAN 2026`);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission
-    alert('Delivery App Policy updated successfully!');
+    showToast('Logistics Protocol updated successfully!', 'success');
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="bg-white px-4 sm:px-6 py-4 border-b border-neutral-200">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-neutral-900">Delivery App Policy</h1>
-          </div>
-          <div className="text-sm text-neutral-600">
-            <span className="text-blue-600">Home</span> / <span className="text-neutral-900">Delivery App Policy</span>
-          </div>
+    <div className="space-y-6 max-w-5xl mx-auto">
+      <PageHeader
+        title="Logistics Compliance Protocol"
+        description="Configure the operational and safety framework for the final-mile delivery network."
+      >
+        <div className="flex items-center gap-3">
+          <Button variant="outline" className="gap-2 font-black uppercase tracking-widest text-[10px] h-10 border-border" onClick={() => showToast("Accessing archive...", "info")}>
+            <History className="h-4 w-4" /> Version Archive
+          </Button>
+          <Button className="gap-2 font-black uppercase tracking-widest text-[10px] h-10 shadow-lg shadow-primary/20" onClick={handleSubmit}>
+            <Save className="h-4 w-4" /> Deploy Policy
+          </Button>
         </div>
-      </div>
+      </PageHeader>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-neutral-50">
-        <div className="max-w-4xl mx-auto">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Policy Content Section */}
-            <div className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
-              <div className="bg-teal-600 px-4 sm:px-6 py-3">
-                <h2 className="text-white text-lg font-semibold">Policy Content</h2>
+      <Tabs defaultValue="editor" className="w-full">
+        <TabsList className="bg-muted/50 p-1 border border-border h-12 mb-6">
+          <TabsTrigger value="editor" className="gap-2 font-bold uppercase tracking-widest text-[10px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground h-10 px-8">
+            <Briefcase className="h-3.5 w-3.5" /> Macro Editor
+          </TabsTrigger>
+          <TabsTrigger value="preview" className="gap-2 font-bold uppercase tracking-widest text-[10px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground h-10 px-8">
+            <Eye className="h-3.5 w-3.5" /> High-Fidelity Preview
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="editor" className="mt-0">
+          <Card className="border-border bg-card shadow-sm border-2 border-primary/5">
+            <CardHeader className="border-b border-border/50 pb-4">
+              <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2 text-primary">
+                <Scale className="h-4 w-4" /> Logistics Content Node
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              <div className="space-y-1.5 font-mono">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Protocol Text Body</Label>
+                <Textarea
+                  value={policyContent}
+                  onChange={(e) => setPolicyContent(e.target.value)}
+                  placeholder="Initialize policy content..."
+                  className="min-h-[500px] bg-muted/20 border-border text-xs leading-relaxed focus-visible:ring-primary/20"
+                />
               </div>
-              <div className="p-4 sm:p-6">
-                <div>
-                  <label className="block text-sm font-bold text-neutral-800 mb-2">
-                    Policy Text <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    name="policyContent"
-                    value={policyContent}
-                    onChange={(e) => setPolicyContent(e.target.value)}
-                    placeholder="Enter Delivery App Policy content..."
-                    rows={25}
-                    required
-                    className="w-full px-4 py-3 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-y font-mono"
-                  />
-                  <p className="mt-2 text-xs text-neutral-500">
-                    You can format the policy content using plain text. Use line breaks and spacing to organize the content.
-                  </p>
+              <div className="flex items-center justify-between pt-4">
+                <p className="text-[9px] text-muted-foreground font-medium flex items-center gap-1.5 italic">
+                  <ShieldAlert className="h-3 w-3 text-amber-500" /> Changes made here will be instantly reflected across all delivery partner nodes.
+                </p>
+                <Button variant="ghost" size="sm" className="h-9 gap-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50 font-bold text-[10px] uppercase tracking-widest" onClick={() => setPolicyContent('')}>
+                  <Trash2 className="h-3.5 w-3.5" /> Purge Content
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="preview" className="mt-0">
+          <Card className="border-border bg-card shadow-lg border-2 border-primary/10">
+            <CardHeader className="bg-primary/5 border-b border-border/50 pb-4">
+              <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2 text-primary">
+                <Truck className="h-4 w-4" /> Live Agent Simulation
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-8 sm:p-12">
+              <div className="prose prose-sm max-w-none">
+                <div className="whitespace-pre-wrap text-[13px] text-foreground font-medium leading-[1.8] tracking-tight bg-background p-10 rounded-3xl border-2 border-border shadow-inner max-h-[600px] overflow-y-auto custom-scrollbar">
+                  {policyContent || 'Awaiting logistics protocol initialization...'}
                 </div>
               </div>
-            </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
-            {/* Preview Section */}
-            <div className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
-              <div className="bg-teal-600 px-4 sm:px-6 py-3">
-                <h2 className="text-white text-lg font-semibold">Preview</h2>
-              </div>
-              <div className="p-4 sm:p-6">
-                <div className="prose max-w-none">
-                  <div className="whitespace-pre-wrap text-sm text-neutral-700 bg-neutral-50 p-4 rounded border border-neutral-200 min-h-[200px] max-h-[400px] overflow-y-auto">
-                    {policyContent || 'Policy content will appear here...'}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex justify-end gap-4">
-              <button
-                type="button"
-                onClick={() => setPolicyContent('')}
-                className="px-6 py-2.5 border border-neutral-300 rounded-lg text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
-              >
-                Clear
-              </button>
-              <button
-                type="submit"
-                className="bg-teal-600 hover:bg-teal-700 text-white px-8 py-2.5 rounded-lg text-base font-medium transition-colors"
-              >
-                Update Policy
-              </button>
-            </div>
-          </form>
+      <div className="flex items-center justify-center gap-12 py-12 opacity-15 pointer-events-none grayscale">
+        <div className="flex items-center gap-2">
+          <Scale className="h-5 w-5" />
+          <span className="text-[10px] font-black uppercase tracking-[0.3em]">LOGISTICS_LEGAL v2.0</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <RefreshCw className="h-5 w-5" />
+          <span className="text-[10px] font-black uppercase tracking-[0.3em]">COMM_SYNC</span>
         </div>
       </div>
     </div>
   );
 }
-
-

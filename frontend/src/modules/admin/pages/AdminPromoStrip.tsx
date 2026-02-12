@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Plus, Edit, Trash2, Search, X, Layers, ShoppingBag, Calendar } from "lucide-react";
 import {
   getPromoStrips,
   createPromoStrip,
@@ -11,8 +12,27 @@ import {
 import { getCategories, type Category } from "../../../services/api/categoryService";
 import { getHeaderCategoriesAdmin, type HeaderCategory } from "../../../services/api/headerCategoryService";
 import { getProducts as getAdminProducts, type Product } from "../../../services/api/admin/adminProductService";
+import { useToast } from "../../../context/ToastContext";
+import PageHeader from "../components/ui/PageHeader";
+import DataTable from "../components/ui/DataTable";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 
 export default function AdminPromoStrip() {
+  const { showToast } = useToast();
+
   // Form state
   const [headerCategorySlug, setHeaderCategorySlug] = useState("");
   const [heading, setHeading] = useState("");
@@ -33,14 +53,12 @@ export default function AdminPromoStrip() {
   const [productSearch, setProductSearch] = useState("");
 
   // UI state
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [loadingPromoStrips, setLoadingPromoStrips] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   // Pagination
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState("10");
   const [currentPage, setCurrentPage] = useState(1);
 
   // Fetch initial data
@@ -71,7 +89,7 @@ export default function AdminPromoStrip() {
       const data = await getPromoStrips();
       setPromoStrips(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to fetch PromoStrips");
+      showToast(err.response?.data?.message || "Failed to fetch PromoStrips", "error");
     } finally {
       setLoadingPromoStrips(false);
     }
@@ -80,7 +98,7 @@ export default function AdminPromoStrip() {
   const fetchHeaderCategories = async () => {
     try {
       const data = await getHeaderCategoriesAdmin();
-      setHeaderCategories(data);
+      setHeaderCategories(data || []);
     } catch (err: any) {
       console.error("Failed to fetch header categories:", err);
     }
@@ -104,7 +122,6 @@ export default function AdminPromoStrip() {
     try {
       const response = await getAdminProducts({ search, limit: 20 });
       if (response.success && response.data) {
-        // Admin products API returns data directly as array
         setProducts(Array.isArray(response.data) ? response.data : []);
       } else {
         setProducts([]);
@@ -117,22 +134,20 @@ export default function AdminPromoStrip() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
 
     if (!headerCategorySlug || !heading || !saleText || !startDate || !endDate) {
-      setError("Please fill in all required fields");
+      showToast("Please fill in all required fields", "warning");
       return;
     }
 
     if (new Date(endDate) <= new Date(startDate)) {
-      setError("End date must be after start date");
+      showToast("End date must be after start date", "warning");
       return;
     }
 
     // Validate at least 4 featured products for carousel
     if (featuredProducts.length < 4) {
-      setError("Please select at least 4 products for the CRAZY DEALS carousel section");
+      showToast("Please select at least 4 products for the CRAZY DEALS carousel section", "warning");
       return;
     }
 
@@ -155,23 +170,23 @@ export default function AdminPromoStrip() {
     };
 
     try {
-      setLoading(true);
+      setSubmitting(true);
 
       if (editingId) {
         await updatePromoStrip(editingId, formData);
-        setSuccess("PromoStrip updated successfully!");
+        showToast("PromoStrip updated successfully!", "success");
         resetForm();
         fetchPromoStrips();
       } else {
         await createPromoStrip(formData);
-        setSuccess("PromoStrip created successfully!");
+        showToast("PromoStrip created successfully!", "success");
         resetForm();
         fetchPromoStrips();
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to save PromoStrip");
+      showToast(err.response?.data?.message || "Failed to save PromoStrip", "error");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -219,13 +234,13 @@ export default function AdminPromoStrip() {
 
     try {
       await deletePromoStrip(id);
-      setSuccess("PromoStrip deleted successfully!");
+      showToast("PromoStrip deleted successfully!", "success");
       fetchPromoStrips();
       if (editingId === id) {
         resetForm();
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to delete PromoStrip");
+      showToast(err.response?.data?.message || "Failed to delete PromoStrip", "error");
     }
   };
 
@@ -258,7 +273,6 @@ export default function AdminPromoStrip() {
 
   const updateCategoryCard = (index: number, field: keyof CategoryCard, value: any) => {
     const updated = [...categoryCards];
-    // Ensure categoryId is always a string when setting it
     if (field === 'categoryId' && typeof value !== 'string') {
       value = typeof value === 'object' && value?._id ? value._id : String(value);
     }
@@ -282,445 +296,409 @@ export default function AdminPromoStrip() {
     setFeaturedProducts(featuredProducts.filter((id) => id !== productId));
   };
 
-  // Pagination
-  const totalPages = Math.ceil(promoStrips.length / rowsPerPage);
-  const startIndex = (currentPage - 1) * rowsPerPage;
-  const endIndex = startIndex + rowsPerPage;
-  const displayedPromoStrips = promoStrips.slice(startIndex, endIndex);
+  const columns = [
+    {
+      header: "Header Category",
+      accessorKey: "headerCategorySlug",
+      cell: (p: PromoStrip) => <Badge variant="outline" className="font-medium bg-muted/50">{p.headerCategorySlug}</Badge>
+    },
+    {
+      header: "Heading",
+      accessorKey: "heading",
+      cell: (p: PromoStrip) => <span className="font-bold text-foreground">{p.heading}</span>
+    },
+    {
+      header: "Date Range",
+      accessorKey: "startDate",
+      cell: (p: PromoStrip) => (
+        <div className="flex flex-col text-xs text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <Calendar className="h-3 w-3" /> {new Date(p.startDate).toLocaleDateString()}
+          </span>
+          <span className="flex items-center gap-1 mt-0.5">
+            <Calendar className="h-3 w-3" /> {new Date(p.endDate).toLocaleDateString()}
+          </span>
+        </div>
+      )
+    },
+    {
+      header: "Status",
+      accessorKey: "isActive",
+      cell: (p: PromoStrip) => (
+        <Badge className={p.isActive ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-muted text-muted-foreground"}>
+          {p.isActive ? "Active" : "Inactive"}
+        </Badge>
+      )
+    },
+    {
+      header: "Action",
+      accessorKey: "_id",
+      cell: (p: PromoStrip) => (
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleEdit(p)}
+            className="h-8 w-8 text-primary hover:bg-primary/10"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleDelete(p._id)}
+            className="h-8 w-8 text-rose-500 hover:bg-rose-50"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      )
+    }
+  ];
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
-      {/* Page Header */}
-      <div className="p-6 pb-0">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-semibold text-neutral-800">Promo Strips</h1>
-          <div className="text-sm text-blue-500">
-            <span className="text-blue-500 hover:underline cursor-pointer">Home</span>{" "}
-            <span className="text-neutral-400">/</span> Promo Strips
-          </div>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Promo Strips"
+        description="Manage promotional banners, category highlights and featured carousels."
+      />
 
-      {/* Success/Error Messages */}
-      {(success || error) && (
-        <div className="px-6">
-          {success && (
-            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-4">
-              {success}
-            </div>
-          )}
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-              {error}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Page Content */}
-      <div className="flex-1 px-6 pb-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-          {/* Left Sidebar: Add/Edit Form */}
-          <div className="bg-white rounded-lg shadow-sm border border-neutral-200 p-6 flex flex-col">
-            <h2 className="text-lg font-semibold text-neutral-800 mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Sidebar: Add/Edit Form */}
+        <Card className="border-border bg-card shadow-sm h-fit">
+          <CardHeader>
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <Plus className="h-5 w-5 text-primary" />
               {editingId ? "Edit PromoStrip" : "Add PromoStrip"}
-            </h2>
-
-            <form onSubmit={handleSubmit} className="space-y-4 flex-1 overflow-y-auto">
-              {/* Header Category Slug */}
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                  Header Category <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={headerCategorySlug}
-                  onChange={(e) => setHeaderCategorySlug(e.target.value)}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
-                  required
-                >
-                  <option value="">Select header category</option>
-                  <option value="all">All</option>
-                  {headerCategories
-                    .filter((hc) => hc.status === "Published")
-                    .map((hc) => (
-                      <option key={hc._id} value={hc.slug}>
-                        {hc.name}
-                      </option>
-                    ))}
-                </select>
+            </CardTitle>
+            <CardDescription>Configure promotional content and layout.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="headerCategory">Header Category <span className="text-rose-500">*</span></Label>
+                <Select value={headerCategorySlug} onValueChange={setHeaderCategorySlug}>
+                  <SelectTrigger className="bg-muted/50 border-border">
+                    <SelectValue placeholder="Select header category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {headerCategories
+                      .filter((hc) => hc.status === "Published")
+                      .map((hc) => (
+                        <SelectItem key={hc._id} value={hc.slug}>
+                          {hc.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
               </div>
 
-              {/* Heading */}
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                  Heading <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
+              <div className="space-y-2">
+                <Label htmlFor="heading">Heading <span className="text-rose-500">*</span></Label>
+                <Input
+                  id="heading"
                   value={heading}
                   onChange={(e) => setHeading(e.target.value)}
                   placeholder="e.g., HOUSEFULL SALE"
-                  className="w-full px-3 py-2 border border-neutral-300 rounded bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                  className="bg-muted/50 border-border"
                   required
                 />
               </div>
 
-              {/* Sale Text */}
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                  Sale Text <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
+              <div className="space-y-2">
+                <Label htmlFor="saleText">Sale Text <span className="text-rose-500">*</span></Label>
+                <Input
+                  id="saleText"
                   value={saleText}
                   onChange={(e) => setSaleText(e.target.value)}
                   placeholder="e.g., SALE"
-                  className="w-full px-3 py-2 border border-neutral-300 rounded bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                  className="bg-muted/50 border-border"
                   required
                 />
               </div>
 
-              {/* Date Range */}
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">
-                    Start Date <span className="text-red-500">*</span>
-                  </label>
-                  <input
+                <div className="space-y-2">
+                  <Label htmlFor="startDate">Start Date <span className="text-rose-500">*</span></Label>
+                  <Input
+                    id="startDate"
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                    className="bg-muted/50 border-border"
                     required
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">
-                    End Date <span className="text-red-500">*</span>
-                  </label>
-                  <input
+                <div className="space-y-2">
+                  <Label htmlFor="endDate">End Date <span className="text-rose-500">*</span></Label>
+                  <Input
+                    id="endDate"
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                    className="bg-muted/50 border-border"
                     required
                   />
                 </div>
               </div>
 
-              {/* Category Cards */}
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="block text-sm font-medium text-neutral-700">
+              <Separator className="my-4" />
+
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <Label className="flex items-center gap-2">
+                    <Layers className="h-4 w-4 text-primary" />
                     Category Cards
-                  </label>
-                  <button
+                  </Label>
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="sm"
                     onClick={addCategoryCard}
-                    className="text-sm text-teal-600 hover:text-teal-700 font-medium"
+                    className="h-7 text-[10px] font-bold uppercase tracking-tight text-primary hover:text-primary hover:bg-primary/5"
                   >
                     + Add Card
-                  </button>
+                  </Button>
                 </div>
-                <div className="space-y-3 max-h-60 overflow-y-auto">
+
+                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                  {categoryCards.length === 0 && (
+                    <div className="text-center py-6 border-2 border-dashed border-border rounded-lg">
+                      <p className="text-xs text-muted-foreground font-medium">No category cards added</p>
+                    </div>
+                  )}
                   {categoryCards.map((card, index) => (
-                    <div key={index} className="border border-neutral-200 rounded p-3 bg-neutral-50">
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="text-xs font-medium text-neutral-600">Card {index + 1}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeCategoryCard(index)}
-                          className="text-red-500 hover:text-red-700 text-xs"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                      <div className="space-y-2">
-                        <select
+                    <Card key={index} className="bg-muted/30 border-border shadow-none">
+                      <CardContent className="p-3 space-y-2">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Card #{index + 1}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeCategoryCard(index)}
+                            className="h-6 w-6 text-rose-500 hover:bg-rose-50"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <Select
                           value={typeof card.categoryId === 'string' ? card.categoryId : (card.categoryId as any)?._id || ''}
-                          onChange={(e) => updateCategoryCard(index, "categoryId", e.target.value)}
-                          className="w-full px-2 py-1 text-sm border border-neutral-300 rounded bg-white"
-                          required
+                          onValueChange={(val) => updateCategoryCard(index, "categoryId", val)}
                         >
-                          <option value="">Select category</option>
-                          {Array.isArray(categories) && categories.map((cat) => (
-                            <option key={cat._id} value={cat._id}>
-                              {cat.name}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          type="text"
+                          <SelectTrigger className="h-8 text-xs bg-card">
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.isArray(categories) && categories.map((cat) => (
+                              <SelectItem key={cat._id} value={cat._id}>
+                                {cat.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          placeholder="Custom title"
                           value={card.title}
                           onChange={(e) => updateCategoryCard(index, "title", e.target.value)}
-                          placeholder="Custom title"
-                          className="w-full px-2 py-1 text-sm border border-neutral-300 rounded bg-white"
+                          className="h-8 text-xs bg-card"
                         />
-                        <input
-                          type="text"
-                          value={card.badge}
-                          onChange={(e) => updateCategoryCard(index, "badge", e.target.value)}
-                          placeholder="Badge (e.g., Up to 55% OFF)"
-                          className="w-full px-2 py-1 text-sm border border-neutral-300 rounded bg-white"
-                          required
-                        />
-                        <input
-                          type="number"
-                          value={card.discountPercentage}
-                          onChange={(e) => updateCategoryCard(index, "discountPercentage", parseFloat(e.target.value) || 0)}
-                          placeholder="Discount %"
-                          min="0"
-                          max="100"
-                          className="w-full px-2 py-1 text-sm border border-neutral-300 rounded bg-white"
-                          required
-                        />
-                      </div>
-                    </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input
+                            placeholder="Badge (off text)"
+                            value={card.badge}
+                            onChange={(e) => updateCategoryCard(index, "badge", e.target.value)}
+                            className="h-8 text-xs bg-card"
+                            required
+                          />
+                          <Input
+                            type="number"
+                            placeholder="Disc %"
+                            value={card.discountPercentage}
+                            onChange={(e) => updateCategoryCard(index, "discountPercentage", parseFloat(e.target.value) || 0)}
+                            className="h-8 text-xs bg-card"
+                            required
+                          />
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               </div>
 
-              {/* CRAZY DEALS Title */}
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                  CRAZY DEALS Title
-                </label>
-                <input
-                  type="text"
-                  value={crazyDealsTitle}
-                  onChange={(e) => setCrazyDealsTitle(e.target.value)}
-                  placeholder="e.g., CRAZY DEALS, SPECIAL OFFERS"
-                  className="w-full px-3 py-2 border border-neutral-300 rounded bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
-                />
-                <p className="text-xs text-neutral-500 mt-1">
-                  Custom title for the featured products section (default: "CRAZY DEALS")
-                </p>
-              </div>
+              <Separator className="my-4" />
 
-              {/* Featured Products */}
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                  Featured Products <span className="text-red-500">*</span>
-                  <span className="text-xs text-neutral-500 font-normal ml-2">
-                    (Minimum 4 required for carousel)
-                  </span>
-                </label>
-                <input
-                  type="text"
-                  value={productSearch}
-                  onChange={(e) => setProductSearch(e.target.value)}
-                  placeholder="Search products (type at least 3 characters)..."
-                  className="w-full px-3 py-2 border border-neutral-300 rounded bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none mb-2"
-                />
-                {productSearch.length > 0 && productSearch.length < 3 && (
-                  <p className="text-xs text-neutral-500 mb-2">Type at least 3 characters to search</p>
-                )}
-                {products.length > 0 && (
-                  <div className="border border-neutral-300 rounded max-h-40 overflow-y-auto mb-2">
-                    {products.map((product) => (
-                      <div
-                        key={product._id}
-                        onClick={() => addFeaturedProduct(product._id)}
-                        className="p-2 hover:bg-neutral-50 cursor-pointer text-sm"
-                      >
-                        {product.productName}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {productSearch.length >= 3 && products.length === 0 && (
-                  <p className="text-xs text-neutral-500 mb-2">No products found</p>
-                )}
-                <div className="flex flex-wrap gap-2 mb-2">
+              <div className="space-y-3">
+                <Label className="flex items-center gap-2">
+                  <ShoppingBag className="h-4 w-4 text-primary" />
+                  Featured Products (Crazy Deals)
+                </Label>
+
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    placeholder="Search products..."
+                    className="pl-8 h-9 text-sm bg-muted/50 border-border"
+                  />
+                  {productSearch.length > 0 && productSearch.length < 3 && (
+                    <p className="text-[10px] text-muted-foreground mt-1">Type 3+ chars</p>
+                  )}
+                  {products.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                      {products.map((product) => (
+                        <button
+                          key={product._id}
+                          type="button"
+                          onClick={() => addFeaturedProduct(product._id)}
+                          className="w-full text-left px-3 py-2 text-xs hover:bg-muted font-medium transition-colors border-b border-border/50 last:border-0"
+                        >
+                          {product.productName}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 min-h-[40px] p-2 border border-border rounded-lg bg-muted/20">
+                  {featuredProducts.length === 0 && (
+                    <p className="text-[10px] text-muted-foreground italic m-auto italic">No products selected (min 4 required)</p>
+                  )}
                   {featuredProducts.map((productId) => {
                     const product = products.find((p) => p._id === productId);
                     return (
-                      <div
+                      <Badge
                         key={productId}
-                        className="flex items-center gap-1 bg-teal-50 text-teal-700 px-2 py-1 rounded text-sm"
+                        variant="secondary"
+                        className="gap-1.5 py-1 px-2 border border-primary/20 bg-primary/5 text-primary rounded-md"
                       >
-                        <span>{product?.productName || productId}</span>
-                        <button
-                          type="button"
+                        <span className="text-[10px] max-w-[100px] truncate">{product?.productName || 'Product'}</span>
+                        <X
+                          className="h-3 w-3 cursor-pointer hover:text-rose-500 transition-colors"
                           onClick={() => removeFeaturedProduct(productId)}
-                          className="text-teal-700 hover:text-teal-900"
-                        >
-                          ×
-                        </button>
-                      </div>
+                        />
+                      </Badge>
                     );
                   })}
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs font-medium ${
-                    featuredProducts.length >= 4 ? 'text-green-600' : 'text-orange-600'
-                  }`}>
-                    {featuredProducts.length} / 4 products selected
-                  </span>
+
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-1.5">
+                    <div className={`h-1.5 w-1.5 rounded-full ${featuredProducts.length >= 4 ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                    <span className="text-[10px] font-bold text-muted-foreground">{featuredProducts.length} / 4 Products</span>
+                  </div>
                   {featuredProducts.length < 4 && (
-                    <span className="text-xs text-orange-600">
-                      (Need {4 - featuredProducts.length} more)
-                    </span>
+                    <span className="text-[10px] font-medium text-amber-600">Need {4 - featuredProducts.length} more</span>
                   )}
                 </div>
               </div>
 
-              {/* Active Toggle */}
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="isActive"
-                  checked={isActive}
-                  onChange={(e) => setIsActive(e.target.checked)}
-                  className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
-                />
-                <label htmlFor="isActive" className="text-sm font-medium text-neutral-700">
-                  Active
-                </label>
+              <div className="space-y-4 pt-4">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="isActive"
+                    checked={isActive}
+                    onCheckedChange={(checked) => setIsActive(checked === true)}
+                  />
+                  <Label htmlFor="isActive" className="text-sm font-medium cursor-pointer">Active / Visible on Storefront</Label>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="order">Display Order</Label>
+                  <Input
+                    type="number"
+                    id="order"
+                    value={order}
+                    onChange={(e) => setOrder(parseInt(e.target.value) || 0)}
+                    className="bg-muted/50 border-border"
+                  />
+                </div>
               </div>
 
-              {/* Order */}
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">Order</label>
-                <input
-                  type="number"
-                  value={order}
-                  onChange={(e) => setOrder(parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
-                />
-              </div>
-
-              {/* Submit Button */}
-              <div className="flex gap-2">
-                <button
+              <div className="flex flex-col gap-2 pt-2">
+                <Button
                   type="submit"
-                  disabled={loading}
-                  className="flex-1 bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700 disabled:opacity-50"
+                  disabled={submitting}
+                  className="w-full font-bold uppercase tracking-wider shadow-lg shadow-primary/20"
                 >
-                  {loading ? "Saving..." : editingId ? "Update" : "Create"}
-                </button>
+                  {submitting ? "Saving..." : editingId ? "Update Strip" : "Create Strip"}
+                </Button>
                 {editingId && (
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
                     onClick={resetForm}
-                    className="px-4 py-2 border border-neutral-300 rounded text-neutral-700 hover:bg-neutral-50"
+                    className="w-full"
                   >
-                    Cancel
-                  </button>
+                    Cancel Edit
+                  </Button>
                 )}
               </div>
             </form>
-          </div>
+          </CardContent>
+        </Card>
 
-          {/* Right Side: List */}
-          <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-neutral-200 p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-neutral-800">Promo Strips List</h2>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-neutral-600">Rows per page:</span>
-                <select
-                  value={rowsPerPage}
-                  onChange={(e) => {
-                    setRowsPerPage(parseInt(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="px-2 py-1 border border-neutral-300 rounded text-sm"
-                >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                </select>
+        {/* Right Side: List */}
+        <Card className="lg:col-span-2 border-border bg-card shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-lg font-bold">Promo Strips List</CardTitle>
+            <CardDescription>All active and inactive promotional strips.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex justify-between items-center bg-muted/30 p-3 rounded-lg border border-border border-dashed">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <ShoppingBag className="h-4 w-4" />
+                Total <span className="font-bold text-foreground">{promoStrips.length}</span> strips configured
               </div>
+              <Select value={rowsPerPage} onValueChange={setRowsPerPage}>
+                <SelectTrigger className="w-24 bg-card h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10 Rows</SelectItem>
+                  <SelectItem value="25">25 Rows</SelectItem>
+                  <SelectItem value="50">50 Rows</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            {loadingPromoStrips ? (
-              <div className="text-center py-8 text-neutral-500">Loading...</div>
-            ) : displayedPromoStrips.length === 0 ? (
-              <div className="text-center py-8 text-neutral-500">No PromoStrips found</div>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-neutral-200">
-                        <th className="text-left py-2 px-3 text-sm font-medium text-neutral-700">Header Category</th>
-                        <th className="text-left py-2 px-3 text-sm font-medium text-neutral-700">Heading</th>
-                        <th className="text-left py-2 px-3 text-sm font-medium text-neutral-700">Date Range</th>
-                        <th className="text-left py-2 px-3 text-sm font-medium text-neutral-700">Status</th>
-                        <th className="text-left py-2 px-3 text-sm font-medium text-neutral-700">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {displayedPromoStrips.map((promoStrip) => (
-                        <tr key={promoStrip._id} className="border-b border-neutral-100 hover:bg-neutral-50">
-                          <td className="py-2 px-3 text-sm text-neutral-700">{promoStrip.headerCategorySlug}</td>
-                          <td className="py-2 px-3 text-sm text-neutral-700">{promoStrip.heading}</td>
-                          <td className="py-2 px-3 text-sm text-neutral-700">
-                            {new Date(promoStrip.startDate).toLocaleDateString()} - {new Date(promoStrip.endDate).toLocaleDateString()}
-                          </td>
-                          <td className="py-2 px-3 text-sm">
-                            <span
-                              className={`px-2 py-1 rounded text-xs ${
-                                promoStrip.isActive
-                                  ? "bg-green-100 text-green-700"
-                                  : "bg-gray-100 text-gray-700"
-                              }`}
-                            >
-                              {promoStrip.isActive ? "Active" : "Inactive"}
-                            </span>
-                          </td>
-                          <td className="py-2 px-3 text-sm">
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleEdit(promoStrip)}
-                                className="text-blue-600 hover:text-blue-700"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => handleDelete(promoStrip._id)}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+            <DataTable
+              columns={columns}
+              data={promoStrips.slice((currentPage - 1) * parseInt(rowsPerPage), currentPage * parseInt(rowsPerPage))}
+              loading={loadingPromoStrips}
+              emptyMessage="No PromoStrips found."
+            />
 
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex justify-between items-center mt-4">
-                    <div className="text-sm text-neutral-600">
-                      Showing {startIndex + 1} to {Math.min(endIndex, promoStrips.length)} of {promoStrips.length} entries
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                        className="px-3 py-1 border border-neutral-300 rounded text-sm disabled:opacity-50"
-                      >
-                        Previous
-                      </button>
-                      <button
-                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                        className="px-3 py-1 border border-neutral-300 rounded text-sm disabled:opacity-50"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-xs text-muted-foreground font-medium">
+                Page <span className="text-foreground font-bold">{currentPage}</span> of {Math.ceil(promoStrips.length / parseInt(rowsPerPage)) || 1}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1 || loadingPromoStrips}
+                  className="h-8 px-3"
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => p + 1)}
+                  disabled={currentPage >= Math.ceil(promoStrips.length / parseInt(rowsPerPage)) || loadingPromoStrips}
+                  className="h-8 px-3"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
 }
-

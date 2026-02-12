@@ -207,12 +207,12 @@ async function seed() {
         console.log('Connected to MongoDB');
 
         // 1. Create or Find Admin Seller
-        let seller = await Seller.findOne({ email: 'retail@Dhakad Snazzy.com' });
+        let seller = await Seller.findOne({ email: 'retail@dhakadsnazzy.com' });
         if (!seller) {
             console.log('Creating default seller...');
             seller = await Seller.create({
                 sellerName: 'Dhakad Snazzy Retail',
-                email: 'retail@Dhakad Snazzy.com',
+                email: 'retail@dhakadsnazzy.com',
                 password: 'password123',
                 mobile: '9876543210',
                 storeName: 'Dhakad Snazzy Retail Pvt Ltd',
@@ -220,7 +220,8 @@ async function seed() {
                 commission: 0,
                 isActive: true, // properties not in schema will be ignored or strict mode will complain if 'strict'
                 status: 'Approved',
-                isVerified: true
+                isVerified: true,
+                location: { type: 'Point', coordinates: [75.8577, 22.7196] }
             });
         }
         console.log(`Using seller: ${seller.sellerName}`);

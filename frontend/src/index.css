@@ -2,29 +2,208 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Prevent font flash for Rubik Doodle Shadow */
-@font-face {
-  font-family: 'Rubik Doodle Shadow';
-  font-display: swap;
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 42 100% 64%;
+    /* #FFC94A converted to HSL */
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 42 100% 64%;
+    --radius: 0.5rem;
+
+    /* Module Specific Accents */
+    --user-accent: 142.1 70.2% 45.3%;
+    /* Green #22c55e */
+    --admin-accent: 174.7 83.9% 31.6%;
+    /* Teal #0d9488 */
+    --seller-accent: 221.2 83.2% 53.3%;
+    /* Blue #3b82f6 */
+    --delivery-accent: 24.6 95% 53.1%;
+    /* Orange #f97316 */
+
+    /* Typography & Spacing Scale */
+    --font-xs: 0.75rem;
+    --font-sm: 0.875rem;
+    --font-base: 1rem;
+    --font-lg: 1.125rem;
+    --font-xl: 1.25rem;
+    --font-2xl: 1.5rem;
+
+    --duration-fast: 150ms;
+    --duration-normal: 250ms;
+    --duration-slow: 400ms;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 42 100% 64%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 80%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 42 100% 64%;
+  }
+
+  /* Global Theme Fixes for Hardcoded Tailwind Classes */
+  .dark .bg-white,
+  .dark .bg-neutral-50,
+  .dark .bg-gray-50 {
+    background-color: hsl(var(--card)) !important;
+  }
+
+  .dark .bg-neutral-100,
+  .dark .bg-gray-100,
+  .dark .bg-neutral-200,
+  .dark .bg-gray-200 {
+    background-color: hsl(var(--muted)) !important;
+  }
+
+  .dark .text-neutral-900,
+  .dark .text-gray-900,
+  .dark .text-neutral-800,
+  .dark .text-gray-800,
+  .dark .text-neutral-700,
+  .dark .text-gray-700 {
+    color: hsl(var(--foreground)) !important;
+  }
+
+  .dark .text-neutral-600,
+  .dark .text-gray-600,
+  .dark .text-neutral-500,
+  .dark .text-gray-500,
+  .dark .text-neutral-400,
+  .dark .text-gray-400 {
+    color: hsl(var(--muted-foreground)) !important;
+  }
+
+  .dark .border-neutral-200,
+  .dark .border-gray-200,
+  .dark .border-neutral-300,
+  .dark .border-gray-300,
+  .dark .border-neutral-100,
+  .dark .border-gray-100 {
+    border-color: hsl(var(--border)) !important;
+  }
+
+  .dark select,
+  .dark input,
+  .dark textarea {
+    background-color: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
+    border-color: hsl(var(--border)) !important;
+  }
+
+  .dark .hover\:bg-neutral-50:hover,
+  .dark .hover\:bg-gray-50:hover,
+  .dark .hover\:bg-neutral-100:hover,
+  .dark .hover\:bg-gray-100:hover {
+    background-color: hsl(var(--muted) / 0.8) !important;
+  }
+
+  /* Dark mode scrollbar styling */
+  .dark ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  .dark ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+    border-left: 1px solid hsl(var(--border));
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+    border-radius: 6px;
+    border: 3px solid hsl(var(--background));
+    transition: background 0.2s ease;
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.45);
+  }
+
+  /* Global Dark Mode Resets */
+  .dark {
+    scrollbar-color: hsl(var(--muted)) hsl(var(--background));
+    scrollbar-width: thin;
+    color-scheme: dark;
+  }
+
+  .dark body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+
+  /* Target common Tailwind border classes that often remain light */
+  .dark [class*='border-gray-'],
+  .dark [class*='border-neutral-'],
+  .dark [class*='border-slate-'] {
+    border-color: hsl(var(--border)) !important;
+  }
 }
 
 @layer base {
+  * {
+    @apply border-border;
+  }
+
   body {
-    @apply bg-white md:bg-white text-neutral-900;
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer base {
+  html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    overscroll-behavior: none;
+    @apply bg-background;
+  }
+
+  body {
+    @apply bg-background text-foreground;
     margin: 0;
     padding: 0;
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
     width: 100%;
     overflow-x: hidden;
-  }
-
-  html {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    overflow-x: hidden;
-    background: white;
+    overscroll-behavior: none;
+    font-family: 'Poppins', 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
   }
 
   #root {
@@ -32,7 +211,6 @@
     padding: 0;
     width: 100%;
     min-height: 100vh;
-    background: white;
     overflow-x: hidden;
   }
 }
@@ -42,6 +220,7 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
@@ -60,6 +239,7 @@ video {
     opacity: 0;
     transform: translateX(20px);
   }
+
   100% {
     opacity: 1;
     transform: translateX(0);
@@ -70,6 +250,7 @@ video {
   0% {
     transform: translateX(-100%);
   }
+
   100% {
     transform: translateX(100%);
   }
@@ -88,9 +269,9 @@ video {
     opacity: 0;
     transform: translateX(-50%) translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
   }
 }
-

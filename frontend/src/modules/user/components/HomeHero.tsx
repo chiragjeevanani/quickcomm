@@ -2,13 +2,15 @@ import { useNavigate } from 'react-router-dom';
 import { useLayoutEffect, useRef, useState, useEffect, useMemo } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { getTheme } from '../../../utils/themes';
-import { useLocation } from '../../../hooks/useLocation';
-import { appConfig } from '../../../services/configService';
-import { getCategories } from '../../../services/api/customerProductService';
-import { Category } from '../../../types/domain';
-import { getHeaderCategoriesPublic } from '../../../services/api/headerCategoryService';
-import { getIconByName } from '../../../utils/iconLibrary';
+import { Search, Mic, ChevronDown, Home, Star, MapPin } from 'lucide-react';
+import { cn } from "@/lib/utils";
+import { getTheme } from '@/utils/themes';
+import { useLocation } from '@/hooks/useLocation';
+import { appConfig } from '@/services/configService';
+import { getCategories } from '@/services/api/customerProductService';
+import { Category } from '@/types/domain';
+import { getHeaderCategoriesPublic } from '@/services/api/headerCategoryService';
+import { getIconByName } from '@/utils/iconLibrary';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -26,12 +28,7 @@ interface Tab {
 const ALL_TAB: Tab = {
   id: 'all',
   label: 'All',
-  icon: (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M9 22V12H15V22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  ),
+  icon: <Home size={20} />,
 };
 
 export default function HomeHero({ activeTab = 'all', onTabChange }: HomeHeroProps) {
@@ -258,7 +255,7 @@ export default function HomeHero({ activeTab = 'all', onTabChange }: HomeHeroPro
       clearTimeout(timeout2);
       clearTimeout(timeout3);
     };
-  }, [activeTab]);
+  }, [activeTab, tabs]);
 
   const handleTabClick = (tabId: string) => {
     onTabChange?.(tabId);
@@ -276,67 +273,78 @@ export default function HomeHero({ activeTab = 'all', onTabChange }: HomeHeroPro
   return (
     <div
       ref={heroRef}
+      className="relative overflow-hidden"
       style={{
         background: heroGradient,
         paddingBottom: 0,
         marginBottom: 0,
       }}
     >
-      {/* Top section with delivery info and buttons - NOT sticky */}
-      <div>
-        <div ref={topSectionRef} className="px-4 md:px-6 lg:px-8 pt-2 md:pt-3 pb-0">
-          <div className="flex items-start justify-between mb-2 md:mb-2">
-            {/* Left: Text content */}
-            <div className="flex-1 pr-2">
-              {/* Service name - small, dark */}
-              <div className="text-neutral-800 font-medium text-[10px] md:text-xs mb-0 leading-tight">Dhakad Snazzy Quick Commerce</div>
-              {/* Delivery time - large, bold, dark grey/black */}
-              <div className="text-neutral-900 font-extrabold text-2xl md:text-xl mb-0 md:mb-0.5 leading-tight">{appConfig.estimatedDeliveryTime}</div>
-              {/* Location with dropdown indicator - only show if location is provided */}
-              {locationDisplayText && (
-              <div className="text-neutral-700 text-[10px] md:text-xs flex items-center gap-0.5 leading-tight">
-                <span className="line-clamp-1" title={locationDisplayText}>{locationDisplayText}</span>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="flex-shrink-0">
-                  <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+      {/* Decorative background elements for premium feel */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/5 rounded-full blur-2xl -ml-24 -mb-24 pointer-events-none" />
+
+      {/* Top section with delivery info - VERY COMPACT */}
+      <div className="relative z-10">
+        <div ref={topSectionRef} className="px-4 md:px-6 lg:px-8 pt-2 pb-1">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline gap-2 mb-0.5">
+                <h1 className="text-neutral-900 font-black text-xl md:text-2xl tracking-tight leading-none">
+                  {appConfig.estimatedDeliveryTime}
+                </h1>
+                <span className="text-neutral-900 font-bold text-[10px] md:text-xs uppercase tracking-widest opacity-60">
+                  Dhakad Snazzy
+                </span>
               </div>
-              )}
+
+              <div
+                className="flex items-start gap-1 cursor-pointer group/loc"
+                title={locationDisplayText}
+              >
+                <MapPin size={12} className="text-neutral-900 mt-0.5 flex-shrink-0 opacity-80" />
+                <span className="text-neutral-900 text-[11px] md:text-xs font-semibold leading-snug break-words">
+                  {locationDisplayText || 'Select Location'}
+                </span>
+                <ChevronDown size={14} className="text-neutral-900 mt-0.5 flex-shrink-0 transition-transform group-hover/loc:translate-y-0.5 opacity-60" />
+              </div>
             </div>
+
+            <button className="flex-shrink-0 w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center hover:bg-white/40 transition-all active:scale-90 shadow-sm">
+              <Star size={16} className="text-neutral-800" />
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Sticky section: Search Bar and Category Tabs - Always sticky */}
+      {/* Sticky section: Search Bar and Category Tabs */}
       <div
         ref={stickyRef}
-        className="sticky top-0 z-50"
+        className="sticky top-0 z-50 transition-all duration-500 ease-in-out"
         style={{
-          ...(scrollProgress >= 0.1 && {
-            background: `linear-gradient(to bottom right,
-              ${rgbToRgba(theme.primary[0], 1 - scrollProgress)},
-              ${rgbToRgba(theme.primary[1], 1 - scrollProgress)},
-              ${rgbToRgba(theme.primary[2], 1 - scrollProgress)}),
-              rgba(255, 255, 255, ${scrollProgress})`,
-            boxShadow: `0 4px 6px -1px rgba(0, 0, 0, ${scrollProgress * 0.1})`,
-            transition: 'background 0.1s ease-out, box-shadow 0.1s ease-out',
-          }),
+          background: scrollProgress > 0.1
+            ? `rgba(255, 255, 255, ${Math.min(scrollProgress * 1.2, 1)})`
+            : 'transparent',
+          backdropFilter: scrollProgress > 0.1 ? `blur(${scrollProgress * 20}px)` : 'none',
+          boxShadow: scrollProgress > 0.5 ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' : 'none',
+          borderBottom: scrollProgress > 0.8 ? '1px solid rgba(0,0,0,0.05)' : 'none',
         }}
       >
-        <div className="px-4 md:px-6 lg:px-8 pt-2 md:pt-2 pb-2 md:pb-2">
-          {/* Search Bar */}
+        <div className="px-4 md:px-6 lg:px-8 py-3 md:py-4">
+          {/* Search Bar - Glassmorphism feel */}
           <div
             onClick={() => navigate('/search')}
-            className="w-full md:w-auto md:max-w-xl md:mx-auto rounded-xl shadow-lg px-3 py-2 md:px-3 md:py-1.5 flex items-center gap-2 cursor-pointer hover:shadow-xl transition-all duration-300 mb-2 md:mb-1.5 bg-white"
-            style={{
-              backgroundColor: scrollProgress > 0.1 ? `rgba(249, 250, 251, ${scrollProgress})` : 'white',
-              border: scrollProgress > 0.1 ? `1px solid rgba(229, 231, 235, ${scrollProgress})` : 'none',
-            }}
+            className={cn(
+              "w-full md:w-auto md:max-w-xl md:mx-auto rounded-2xl px-4 py-3 flex items-center gap-3 cursor-pointer transition-all duration-300 group",
+              scrollProgress > 0.1
+                ? "bg-neutral-100/80 border border-neutral-200/50"
+                : "bg-white shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-transparent hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)]"
+            )}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="flex-shrink-0 md:w-4 md:h-4">
-              <circle cx="11" cy="11" r="8" stroke={scrollProgress > 0.5 ? "#9ca3af" : "#6b7280"} strokeWidth="2" />
-              <path d="m21 21-4.35-4.35" stroke={scrollProgress > 0.5 ? "#9ca3af" : "#6b7280"} strokeWidth="2" strokeLinecap="round" />
-            </svg>
-            <div className="flex-1 relative h-4 md:h-4 overflow-hidden">
+            <div className="p-1 rounded-lg bg-neutral-100 group-hover:bg-white transition-colors">
+              <Search size={20} className="text-neutral-500 group-hover:text-neutral-900 transition-colors" />
+            </div>
+            <div className="flex-1 relative h-5 overflow-hidden">
               {searchSuggestions.map((suggestion, index) => {
                 const isActive = index === currentSearchIndex;
                 const prevIndex = (currentSearchIndex - 1 + searchSuggestions.length) % searchSuggestions.length;
@@ -345,94 +353,78 @@ export default function HomeHero({ activeTab = 'all', onTabChange }: HomeHeroPro
                 return (
                   <div
                     key={suggestion}
-                    className={`absolute inset-0 flex items-center transition-all duration-500 ${isActive
-                      ? 'translate-y-0 opacity-100'
-                      : isPrev
-                        ? '-translate-y-full opacity-0'
-                        : 'translate-y-full opacity-0'
-                      }`}
+                    className={cn(
+                      "absolute inset-0 flex items-center transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]",
+                      isActive ? "translate-y-0 opacity-100" : isPrev ? "-translate-y-full opacity-0" : "translate-y-full opacity-0"
+                    )}
                   >
-                    <span className={`text-xs md:text-xs`} style={{ color: scrollProgress > 0.5 ? '#9ca3af' : '#6b7280' }}>
-                      Search &apos;{suggestion}&apos;
+                    <span className="text-sm font-medium text-neutral-500">
+                      Search <span className="text-neutral-400 font-normal">"{suggestion}"</span>
                     </span>
                   </div>
                 );
               })}
             </div>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="flex-shrink-0 md:w-4 md:h-4">
-              <path d="M12 1C13.1 1 14 1.9 14 3C14 4.1 13.1 5 12 5C10.9 5 10 4.1 10 3C10 1.9 10.9 1 12 1Z" fill={scrollProgress > 0.5 ? "#9ca3af" : "#6b7280"} />
-              <path d="M19 10V17C19 18.1 18.1 19 17 19H7C5.9 19 5 18.1 5 17V10" stroke={scrollProgress > 0.5 ? "#9ca3af" : "#6b7280"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M12 11V17" stroke={scrollProgress > 0.5 ? "#9ca3af" : "#6b7280"} strokeWidth="2" strokeLinecap="round" />
-              <path d="M8 11V17" stroke={scrollProgress > 0.5 ? "#9ca3af" : "#6b7280"} strokeWidth="2" strokeLinecap="round" />
-              <path d="M16 11V17" stroke={scrollProgress > 0.5 ? "#9ca3af" : "#6b7280"} strokeWidth="2" strokeLinecap="round" />
-            </svg>
+            <div className="w-px h-6 bg-neutral-200 mx-1" />
+            <Mic size={20} className="text-neutral-400 hover:text-neutral-900 transition-colors" />
           </div>
         </div>
 
-        {/* Category Tabs */}
-        <div className="border-b border-neutral-400/40 w-full" style={{ paddingBottom: 0 }}>
+        {/* Category Tabs Section */}
+        <div className="relative">
           <div
             ref={tabsContainerRef}
-            className="relative flex gap-2 md:gap-3 overflow-x-auto scrollbar-hide -mx-4 md:mx-0 px-4 md:px-6 lg:px-8 md:justify-center scroll-smooth"
-            style={{ paddingBottom: '12px' }}
-            data-padding-bottom="md:8px"
+            className="flex gap-4 md:gap-6 overflow-x-auto scrollbar-hide px-4 md:px-6 lg:px-8 pb-3 md:justify-center scroll-smooth no-scrollbar relative"
           >
-            {/* Sliding Indicator */}
-            {indicatorStyle.width > 0 && (
-              <div
-                className="absolute bottom-0 h-1 bg-neutral-900 rounded-t-md transition-all duration-300 ease-out pointer-events-none"
-                style={{
-                  left: `${indicatorStyle.left}px`,
-                  width: `${indicatorStyle.width}px`,
-                  transition: 'left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  zIndex: 0,
-                }}
-              />
-            )}
-
             {tabs.map((tab) => {
               const isActive = activeTab === tab.id;
-              const tabColor = isActive
-                ? 'text-neutral-900'
-                : scrollProgress > 0.5
-                  ? 'text-neutral-600'
-                  : 'text-neutral-800';
 
               return (
                 <button
                   key={tab.id}
-                  ref={(el) => {
-                    if (el) {
-                      tabRefs.current.set(tab.id, el);
-                    } else {
-                      tabRefs.current.delete(tab.id);
-                    }
-                  }}
+                  ref={(el) => { if (el) tabRefs.current.set(tab.id, el); }}
                   onClick={() => handleTabClick(tab.id)}
-                  className={`flex-shrink-0 flex flex-col md:flex-row items-center justify-center min-w-[50px] md:min-w-fit md:px-3 py-1 md:py-1.5 relative ${tabColor} z-10`}
-                  style={{
-                    transition: 'color 0.3s ease-out',
-                  }}
+                  className={cn(
+                    "flex-shrink-0 flex flex-col items-center gap-1 px-3 py-1 transition-all duration-300 relative z-10",
+                    isActive
+                      ? "text-neutral-900"
+                      : scrollProgress > 0.5 ? "text-neutral-500 hover:text-neutral-900" : "text-neutral-800 hover:text-neutral-900"
+                  )}
                   type="button"
                 >
-                  <div className={`mb-0.5 md:hidden w-5 h-5 flex items-center justify-center ${tabColor}`} style={{
-                    transition: 'color 0.3s ease-out, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    transform: isActive ? 'scale(1.1)' : 'scale(1)',
-                  }}>
+                  <span className={cn(
+                    "transition-transform duration-300",
+                    isActive ? "scale-105" : "scale-100"
+                  )}>
                     {tab.icon}
-                  </div>
-                  <span
-                    className={`text-[10px] md:text-xs md:whitespace-nowrap ${isActive ? 'font-semibold' : 'font-medium'}`}
-                    style={{
-                      transition: 'font-weight 0.3s ease-out',
-                    }}
-                  >
+                  </span>
+                  <span className={cn(
+                    "text-[10px] md:text-xs whitespace-nowrap transition-all duration-300",
+                    isActive ? "font-bold" : "font-medium"
+                  )}>
                     {tab.label}
                   </span>
                 </button>
               )
             })}
+
+            {/* Selector bar now inside the scrollable container to stay 'fixed' under category */}
+            {indicatorStyle.width > 0 && (
+              <div
+                className="absolute bottom-0 h-1 bg-neutral-900 rounded-full transition-all duration-200 ease-out pointer-events-none z-20"
+                style={{
+                  left: `${indicatorStyle.left + (indicatorStyle.width * 0.1)}px`,
+                  width: `${indicatorStyle.width * 0.8}px`,
+                }}
+              />
+            )}
           </div>
+
+          {/* Subtle bottom border for sticky state */}
+          <div className={cn(
+            "absolute bottom-0 left-0 right-0 h-px bg-neutral-200/50 transition-opacity duration-300",
+            scrollProgress > 0.5 ? "opacity-100" : "opacity-0"
+          )} />
         </div>
       </div>
     </div>

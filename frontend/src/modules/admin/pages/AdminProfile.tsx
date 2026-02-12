@@ -1,14 +1,38 @@
 import { useState, useEffect } from 'react';
 import { getProfile, updateProfile, type AdminProfile as AdminProfileType } from '../../../services/api/admin/adminProfileService';
 import { useAuth } from '../../../context/AuthContext';
+import { useToast } from "../../../context/ToastContext";
+import PageHeader from "../components/ui/PageHeader";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+    User,
+    Mail,
+    Phone,
+    Shield,
+    Calendar,
+    Edit2,
+    Save,
+    X,
+    Camera,
+    ChevronRight,
+    Verified,
+    Activity,
+    Clock,
+    UserCircle2
+} from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 export default function AdminProfile() {
     const { isAuthenticated } = useAuth();
+    const { showToast } = useToast();
     const [profile, setProfile] = useState<AdminProfileType | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [success, setSuccess] = useState<string | null>(null);
     const [isEditing, setIsEditing] = useState(false);
 
     const [formData, setFormData] = useState({
@@ -18,7 +42,6 @@ export default function AdminProfile() {
         mobile: '',
     });
 
-    // Fetch profile on mount
     useEffect(() => {
         if (!isAuthenticated) {
             setLoading(false);
@@ -28,7 +51,6 @@ export default function AdminProfile() {
         const fetchProfile = async () => {
             try {
                 setLoading(true);
-                setError(null);
                 const response = await getProfile();
                 if (response.success && response.data) {
                     setProfile(response.data);
@@ -40,8 +62,7 @@ export default function AdminProfile() {
                     });
                 }
             } catch (err) {
-                console.error('Error fetching profile:', err);
-                setError('Failed to load profile. Please try again.');
+                showToast('Failed to load profile intelligence', 'error');
             } finally {
                 setLoading(false);
             }
@@ -56,64 +77,27 @@ export default function AdminProfile() {
     };
 
     const handleSave = async () => {
+        if (!formData.firstName.trim() || !formData.lastName.trim()) return showToast('Full name required', 'warning');
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return showToast('Valid email required', 'warning');
+        if (!/^[0-9]{10}$/.test(formData.mobile)) return showToast('10-digit mobile required', 'warning');
+
         try {
             setSaving(true);
-            setError(null);
-            setSuccess(null);
-
-            // Validation
-            if (!formData.firstName.trim() || !formData.lastName.trim()) {
-                setError('First name and last name are required.');
-                return;
-            }
-
-            if (!formData.email.trim()) {
-                setError('Email is required.');
-                return;
-            }
-
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-                setError('Please enter a valid email address.');
-                return;
-            }
-
-            if (!formData.mobile.trim()) {
-                setError('Mobile number is required.');
-                return;
-            }
-
-            if (!/^[0-9]{10}$/.test(formData.mobile)) {
-                setError('Mobile number must be 10 digits.');
-                return;
-            }
-
             const response = await updateProfile(formData);
             if (response.success && response.data) {
                 setProfile(response.data);
-                setSuccess('Profile updated successfully!');
+                showToast('Master identity synchronized!', 'success');
                 setIsEditing(false);
 
-                // Update localStorage userData
                 const userData = localStorage.getItem('userData');
                 if (userData) {
                     const parsedData = JSON.parse(userData);
-                    parsedData.firstName = response.data.firstName;
-                    parsedData.lastName = response.data.lastName;
-                    parsedData.email = response.data.email;
-                    parsedData.mobile = response.data.mobile;
+                    Object.assign(parsedData, formData);
                     localStorage.setItem('userData', JSON.stringify(parsedData));
                 }
-
-                // Clear success message after 3 seconds
-                setTimeout(() => setSuccess(null), 3000);
             }
         } catch (err: any) {
-            console.error('Error updating profile:', err);
-            if (err?.response?.data?.message) {
-                setError(err.response.data.message);
-            } else {
-                setError('Failed to update profile. Please try again.');
-            }
+            showToast(err?.response?.data?.message || 'Synchronization failed', 'error');
         } finally {
             setSaving(false);
         }
@@ -129,197 +113,190 @@ export default function AdminProfile() {
             });
         }
         setIsEditing(false);
-        setError(null);
-        setSuccess(null);
     };
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-screen">
-                <div className="text-neutral-600">Loading profile...</div>
+            <div className="flex items-center justify-center p-24">
+                <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
             </div>
         );
     }
 
-    if (!profile) {
-        return (
-            <div className="flex items-center justify-center h-screen">
-                <div className="text-red-600">Failed to load profile</div>
-            </div>
-        );
-    }
+    if (!profile) return null;
 
     return (
-        <div className="flex flex-col h-full">
-            {/* Header */}
-            <div className="bg-white px-4 sm:px-6 py-4 border-b border-neutral-200">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        <h1 className="text-xl sm:text-2xl font-bold text-neutral-900">
-                            Admin Profile
-                        </h1>
+        <div className="space-y-6 max-w-5xl mx-auto">
+            <PageHeader
+                title="Admin Identity"
+                description="Manage your platform credentials and administrative profile."
+            />
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Visual Identity Card */}
+                <Card className="border-border bg-card shadow-sm lg:col-span-1 overflow-hidden">
+                    <div className="h-32 bg-gradient-to-r from-primary/80 to-primary relative">
+                        <div className="absolute inset-0 bg-grid-white/10" />
                     </div>
-                    <div className="text-sm text-neutral-600">
-                        <span className="text-blue-600">Home</span> /{' '}
-                        <span className="text-neutral-900">Profile</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-neutral-50">
-                <div className="max-w-3xl mx-auto">
-                    {/* Success Message */}
-                    {success && (
-                        <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
-                            {success}
+                    <CardContent className="pt-0 -mt-16 flex flex-col items-center text-center pb-8 px-6">
+                        <div className="relative group">
+                            <Avatar className="h-32 w-32 border-4 border-card shadow-xl">
+                                <AvatarImage src="" />
+                                <AvatarFallback className="bg-primary/10 text-primary text-4xl font-black">
+                                    {profile.firstName[0]}{profile.lastName[0]}
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="absolute bottom-1 right-1 h-9 w-9 rounded-full bg-white shadow-md border border-border flex items-center justify-center text-primary cursor-pointer hover:bg-primary hover:text-white transition-all">
+                                <Camera className="h-4 w-4" />
+                            </div>
                         </div>
-                    )}
 
-                    {/* Error Message */}
-                    {error && (
-                        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-                            {error}
-                        </div>
-                    )}
-
-                    {/* Profile Card */}
-                    <div className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
-                        {/* Card Header */}
-                        <div className="px-6 py-4 border-b border-neutral-200 bg-neutral-50 flex items-center justify-between">
-                            <h2 className="text-lg font-semibold text-neutral-900">
-                                Profile Information
+                        <div className="mt-4">
+                            <h2 className="text-xl font-black text-foreground flex items-center gap-2 justify-center">
+                                {profile.firstName} {profile.lastName}
+                                <Verified className="h-5 w-5 text-primary fill-primary/10" />
                             </h2>
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-[0.2em] mt-1">{profile.role}</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 w-full gap-4 mt-8 pt-8 border-t border-border">
+                            <div className="flex flex-col items-center">
+                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Status</span>
+                                <Badge className="mt-1 bg-emerald-500/10 text-emerald-600 border-emerald-500/20 shadow-sm">
+                                    <Activity className="h-3 w-3 mr-1" /> ACTIVE
+                                </Badge>
+                            </div>
+                            <div className="flex flex-col items-center border-l border-border">
+                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Node ID</span>
+                                <span className="mt-1 font-mono text-[10px] font-bold bg-muted px-2 py-0.5 rounded">SYSTEM_ROOT</span>
+                            </div>
+                        </div>
+
+                        <div className="w-full mt-6 space-y-3">
+                            <div className="flex items-center justify-between text-[11px] font-medium p-3 bg-muted/20 border border-border/50 rounded-xl">
+                                <span className="text-muted-foreground flex items-center gap-2"><Clock className="h-3.5 w-3.5" /> Established</span>
+                                <span className="text-foreground">{new Date(profile.createdAt).toLocaleDateString()}</span>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Intelligence Matrix (Form) */}
+                <Card className="border-border bg-card shadow-sm lg:col-span-2">
+                    <CardHeader className="border-b border-border bg-muted/10 pb-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <CardTitle className="text-lg font-bold">Profile Intelligence</CardTitle>
+                                <CardDescription>Synchronize your personal data with the core system.</CardDescription>
+                            </div>
                             {!isEditing && (
-                                <button
-                                    onClick={() => setIsEditing(true)}
-                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition-colors"
-                                >
-                                    Edit Profile
-                                </button>
+                                <Button onClick={() => setIsEditing(true)} variant="outline" size="sm" className="gap-2 font-bold uppercase tracking-tight h-9">
+                                    <Edit2 className="h-4 w-4" /> Edit Core
+                                </Button>
                             )}
                         </div>
-
-                        {/* Card Body */}
-                        <div className="p-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* First Name */}
-                                <div>
-                                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                                        First Name
-                                    </label>
-                                    {isEditing ? (
-                                        <input
-                                            type="text"
-                                            name="firstName"
-                                            value={formData.firstName}
-                                            onChange={handleInputChange}
-                                            className="w-full px-3 py-2 border border-neutral-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                        />
-                                    ) : (
-                                        <p className="text-neutral-900 py-2">{profile.firstName}</p>
-                                    )}
-                                </div>
-
-                                {/* Last Name */}
-                                <div>
-                                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                                        Last Name
-                                    </label>
-                                    {isEditing ? (
-                                        <input
-                                            type="text"
-                                            name="lastName"
-                                            value={formData.lastName}
-                                            onChange={handleInputChange}
-                                            className="w-full px-3 py-2 border border-neutral-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                        />
-                                    ) : (
-                                        <p className="text-neutral-900 py-2">{profile.lastName}</p>
-                                    )}
-                                </div>
-
-                                {/* Email */}
-                                <div>
-                                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                                        Email
-                                    </label>
-                                    {isEditing ? (
-                                        <input
-                                            type="email"
-                                            name="email"
-                                            value={formData.email}
-                                            onChange={handleInputChange}
-                                            className="w-full px-3 py-2 border border-neutral-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                        />
-                                    ) : (
-                                        <p className="text-neutral-900 py-2">{profile.email}</p>
-                                    )}
-                                </div>
-
-                                {/* Mobile */}
-                                <div>
-                                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                                        Mobile
-                                    </label>
-                                    {isEditing ? (
-                                        <input
-                                            type="text"
-                                            name="mobile"
-                                            value={formData.mobile}
-                                            onChange={handleInputChange}
-                                            maxLength={10}
-                                            className="w-full px-3 py-2 border border-neutral-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                        />
-                                    ) : (
-                                        <p className="text-neutral-900 py-2">{profile.mobile}</p>
-                                    )}
-                                </div>
-
-                                {/* Role (Read-only) */}
-                                <div>
-                                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                                        Role
-                                    </label>
-                                    <p className="text-neutral-900 py-2">
-                                        <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                                            {profile.role}
-                                        </span>
-                                    </p>
-                                </div>
-
-                                {/* Created At */}
-                                <div>
-                                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                                        Created At
-                                    </label>
-                                    <p className="text-neutral-900 py-2">
-                                        {new Date(profile.createdAt).toLocaleString()}
-                                    </p>
+                    </CardHeader>
+                    <CardContent className="pt-8 space-y-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Given Name</Label>
+                                <div className="relative">
+                                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+                                    <Input
+                                        name="firstName"
+                                        value={formData.firstName}
+                                        onChange={handleInputChange}
+                                        readOnly={!isEditing}
+                                        className={`pl-9 h-11 bg-muted/30 border-border font-medium ${!isEditing && 'opacity-70 grayscale pointer-events-none'}`}
+                                    />
                                 </div>
                             </div>
 
-                            {/* Action Buttons (Edit Mode) */}
-                            {isEditing && (
-                                <div className="mt-6 flex items-center gap-3">
-                                    <button
-                                        onClick={handleSave}
-                                        disabled={saving}
-                                        className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {saving ? 'Saving...' : 'Save Changes'}
-                                    </button>
-                                    <button
-                                        onClick={handleCancel}
-                                        disabled={saving}
-                                        className="px-6 py-2 bg-neutral-400 hover:bg-neutral-500 text-white font-medium rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        Cancel
-                                    </button>
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Family Name</Label>
+                                <div className="relative">
+                                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+                                    <Input
+                                        name="lastName"
+                                        value={formData.lastName}
+                                        onChange={handleInputChange}
+                                        readOnly={!isEditing}
+                                        className={`pl-9 h-11 bg-muted/30 border-border font-medium ${!isEditing && 'opacity-70 grayscale pointer-events-none'}`}
+                                    />
                                 </div>
-                            )}
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">System Email</Label>
+                                <div className="relative">
+                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+                                    <Input
+                                        name="email"
+                                        type="email"
+                                        value={formData.email}
+                                        onChange={handleInputChange}
+                                        readOnly={!isEditing}
+                                        className={`pl-9 h-11 bg-muted/30 border-border font-medium ${!isEditing && 'opacity-70 grayscale pointer-events-none'}`}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Mobile Access Line</Label>
+                                <div className="relative">
+                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+                                    <Input
+                                        name="mobile"
+                                        value={formData.mobile}
+                                        onChange={handleInputChange}
+                                        readOnly={!isEditing}
+                                        maxLength={10}
+                                        className={`pl-9 h-11 bg-muted/30 border-border font-medium ${!isEditing && 'opacity-70 grayscale pointer-events-none'}`}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-1.5 opacity-50">
+                                <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Security Role</Label>
+                                <div className="relative">
+                                    <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+                                    <Input
+                                        value={profile.role}
+                                        readOnly
+                                        className="pl-9 h-11 bg-muted border-border font-black text-xs uppercase tracking-widest pointer-events-none"
+                                    />
+                                </div>
+                            </div>
                         </div>
-                    </div>
+
+                        {isEditing && (
+                            <div className="flex items-center gap-3 pt-6 border-t border-border">
+                                <Button
+                                    onClick={handleSave}
+                                    disabled={saving}
+                                    className="gap-2 font-black uppercase tracking-widest h-11 px-8 shadow-lg shadow-primary/20"
+                                >
+                                    {saving ? "Syncing..." : <><Save className="h-4 w-4" /> Update Matrix</>}
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    onClick={handleCancel}
+                                    className="gap-2 font-bold uppercase tracking-tight h-11 px-8 text-muted-foreground"
+                                >
+                                    <X className="h-4 w-4" /> Abort
+                                </Button>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
+
+            <div className="flex items-center justify-center p-12 opacity-10 pointer-events-none grayscale">
+                <UserCircle2 className="h-12 w-12" />
+                <Separator orientation="vertical" className="h-8 mx-6" />
+                <div className="flex flex-col">
+                    <span className="text-[10px] font-black uppercase tracking-[0.4em]">Proprietary Admin Engine</span>
+                    <span className="text-[8px] font-bold uppercase tracking-widest">Version Alpha-9 • Multi-factor Enabled</span>
                 </div>
             </div>
         </div>

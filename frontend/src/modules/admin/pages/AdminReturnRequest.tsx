@@ -5,22 +5,51 @@ import {
   type MiscReturnRequest as ReturnRequest,
 } from "../../../services/api/admin/adminMiscService";
 import { useAuth } from "../../../context/AuthContext";
+import { useToast } from "../../../context/ToastContext";
+import PageHeader from "../components/ui/PageHeader";
+import DataTable from "../components/ui/DataTable";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Search,
+  Download,
+  CheckCircle2,
+  XCircle,
+  Calendar,
+  Filter,
+  User,
+  Package,
+  MessageSquare,
+  ChevronLeft,
+  ChevronRight,
+  FilterX,
+  Clock,
+  Check,
+  X
+} from "lucide-react";
+import { Label } from "@/components/ui/label";
 
 export default function AdminReturnRequest() {
   const { isAuthenticated, token } = useAuth();
+  const { showToast } = useToast();
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  const [selectedSeller, setSelectedSeller] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
-  const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState("10");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [returnRequests, setReturnRequests] = useState<ReturnRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   // Fetch return requests on component mount
   useEffect(() => {
@@ -32,11 +61,10 @@ export default function AdminReturnRequest() {
     const fetchReturnRequests = async () => {
       try {
         setLoading(true);
-        setError(null);
 
         const params: any = {
           page: currentPage,
-          limit: entriesPerPage,
+          limit: parseInt(rowsPerPage),
         };
 
         if (selectedStatus !== "all") {
@@ -52,45 +80,22 @@ export default function AdminReturnRequest() {
         if (response.success) {
           setReturnRequests(response.data);
         } else {
-          setError("Failed to load return requests");
+          showToast("Failed to load return requests", "error");
         }
       } catch (err: any) {
         console.error("Error fetching return requests:", err);
-        setError(
-          err.response?.data?.message ||
-          "Failed to load return requests. Please try again."
-        );
+        showToast(err.response?.data?.message || "Failed to load return requests", "error");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchReturnRequests();
-  }, [
-    isAuthenticated,
-    token,
-    currentPage,
-    entriesPerPage,
-    selectedStatus,
-    searchTerm,
-  ]);
+    const timer = setTimeout(() => {
+      fetchReturnRequests();
+    }, searchTerm ? 500 : 0);
 
-  const handleSort = (column: string) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortColumn(column);
-      setSortDirection("asc");
-    }
-  };
-
-  // Note: Filtering is done server-side, so we just use the returnRequests as is
-  const displayedRequests = returnRequests;
-
-  // For pagination display (simplified - in real app, this would come from API)
-  const totalPages = Math.ceil(displayedRequests.length / entriesPerPage);
-  const startIndex = (currentPage - 1) * entriesPerPage;
-  const endIndex = startIndex + entriesPerPage;
+    return () => clearTimeout(timer);
+  }, [isAuthenticated, token, currentPage, rowsPerPage, selectedStatus, searchTerm]);
 
   const handleApproveReturn = async (requestId: string) => {
     try {
@@ -100,25 +105,17 @@ export default function AdminReturnRequest() {
       });
 
       if (response.success) {
-        // Update local state
         setReturnRequests((requests) =>
           requests.map((req) =>
             req._id === requestId ? { ...req, status: "Approved" } : req
           )
         );
-        alert("Return request approved successfully!");
+        showToast("Return request approved successfully!", "success");
       } else {
-        alert(
-          "Failed to approve return request: " +
-          (response.message || "Unknown error")
-        );
+        showToast(response.message || "Failed to approve return request", "error");
       }
     } catch (err: any) {
-      console.error("Error approving return request:", err);
-      alert(
-        "Failed to approve return request: " +
-        (err.response?.data?.message || "Please try again.")
-      );
+      showToast(err.response?.data?.message || "Failed to approve return request", "error");
     } finally {
       setUpdating(null);
     }
@@ -136,680 +133,249 @@ export default function AdminReturnRequest() {
       });
 
       if (response.success) {
-        // Update local state
         setReturnRequests((requests) =>
           requests.map((req) =>
-            req._id === requestId ? { ...req, status: "Rejected" } : req
+            req._id === requestId ? { ...req, status: "Rejected", adminNotes: reason } : req
           )
         );
-        alert("Return request rejected successfully!");
+        showToast("Return request rejected successfully!", "success");
       } else {
-        alert(
-          "Failed to reject return request: " +
-          (response.message || "Unknown error")
-        );
+        showToast(response.message || "Failed to reject return request", "error");
       }
     } catch (err: any) {
-      console.error("Error rejecting return request:", err);
-      alert(
-        "Failed to reject return request: " +
-        (err.response?.data?.message || "Please try again.")
-      );
+      showToast(err.response?.data?.message || "Failed to reject return request", "error");
     } finally {
       setUpdating(null);
     }
   };
 
   const handleExport = () => {
-    alert("Export functionality will be implemented here");
+    showToast("Export functionality will be implemented soon.", "info");
   };
 
-  const handleClearDate = () => {
+  const handleClearFilters = () => {
     setFromDate("");
     setToDate("");
+    setSelectedStatus("all");
+    setSearchTerm("");
   };
 
-  const sellers = ["All Seller", "Seller 1", "Seller 2", "Seller 3"];
-
-  const statuses = [
-    "All Status",
-    "Pending",
-    "Approved",
-    "Rejected",
-    "Completed",
+  const columns = [
+    {
+      header: "Request ID / User",
+      accessorKey: "orderItemId",
+      cell: (r: ReturnRequest) => (
+        <div className="flex flex-col gap-1">
+          <Badge variant="outline" className="font-mono text-[10px] w-fit border-primary/20 bg-primary/5 text-primary">
+            #{r.orderItemId?.slice(-8) || r._id.slice(-8)}
+          </Badge>
+          <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+            <User className="h-3 w-3 text-muted-foreground" /> {r.userName}
+          </div>
+        </div>
+      )
+    },
+    {
+      header: "Product Details",
+      accessorKey: "productName",
+      cell: (r: ReturnRequest) => (
+        <div className="flex flex-col gap-1 max-w-[200px]">
+          <span className="font-bold text-foreground text-xs leading-tight truncate">{r.productName}</span>
+          <span className="text-[10px] text-muted-foreground font-medium uppercase truncate">Variant: {r.variant || "Standard"}</span>
+        </div>
+      )
+    },
+    {
+      header: "Financials",
+      accessorKey: "total",
+      cell: (r: ReturnRequest) => (
+        <div className="flex flex-col">
+          <span className="font-bold text-foreground">₹{r.total.toFixed(2)}</span>
+          <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight">Qty: {r.quantity} × ₹{r.price}</span>
+        </div>
+      )
+    },
+    {
+      header: "Status / Date",
+      accessorKey: "status",
+      cell: (r: ReturnRequest) => (
+        <div className="flex flex-col gap-1.5">
+          <Badge className={
+            r.status === 'Approved' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' :
+              r.status === 'Pending' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' :
+                r.status === 'Rejected' ? 'bg-rose-500/10 text-rose-600 border-rose-500/20' :
+                  'bg-blue-500/10 text-blue-600 border-blue-500/20'
+          }>
+            {r.status}
+          </Badge>
+          <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">
+            <Clock className="h-2.5 w-2.5" /> {new Date(r.requestedAt).toLocaleDateString()}
+          </div>
+        </div>
+      )
+    },
+    {
+      header: "Action",
+      accessorKey: "_id",
+      cell: (r: ReturnRequest) => (
+        <div className="flex items-center gap-2">
+          {r.status === "Pending" ? (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleApproveReturn(r._id)}
+                disabled={!!updating}
+                className="h-8 w-8 text-emerald-600 hover:bg-emerald-50"
+                title="Approve"
+              >
+                <Check className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleRejectReturn(r._id)}
+                disabled={!!updating}
+                className="h-8 w-8 text-rose-600 hover:bg-rose-50"
+                title="Reject"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </>
+          ) : (
+            <Badge variant="outline" className="text-[9px] uppercase tracking-tighter opacity-50 font-bold border-muted">PROCESSED</Badge>
+          )}
+        </div>
+      )
+    }
   ];
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
-        <h1 className="text-2xl font-semibold text-neutral-800">
-          Return Request
-        </h1>
-        <div className="text-sm text-neutral-600">
-          <span className="text-teal-600 hover:text-teal-700 cursor-pointer">
-            Home
-          </span>
-          <span className="mx-2">/</span>
-          <span className="text-neutral-800">Return Request</span>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Return & Refund Requests"
+        description="Review and process product return requests from customers."
+      >
+        <Button variant="outline" size="sm" className="gap-2 shadow-sm font-bold uppercase tracking-tight" onClick={handleExport}>
+          <Download className="h-4 w-4" /> Export Report
+        </Button>
+      </PageHeader>
 
-      {/* Main Content Card */}
-      <div className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
-        {/* Green Header Bar */}
-        <div className="bg-green-500 px-4 sm:px-6 py-3">
-          <h2 className="text-white text-lg font-semibold">
-            View Return Request
-          </h2>
-        </div>
-
-        {/* Filters */}
-        <div className="p-4 sm:p-6 border-b border-neutral-200">
-          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-            {/* Left Side Filters */}
-            <div className="flex flex-col sm:flex-row gap-3 flex-1 flex-wrap">
-              {/* From - To Date */}
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-neutral-700 whitespace-nowrap">
-                  From - To Date:
-                </label>
+      <Card className="border-border bg-card shadow-sm">
+        <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0 text-white bg-emerald-600 rounded-t-lg">
+          <CardTitle className="text-lg font-bold flex items-center gap-2">
+            <Package className="h-5 w-5" /> Incoming Requests
+          </CardTitle>
+          <Badge variant="outline" className="bg-white/20 text-white border-white/30 font-bold uppercase tracking-tighter text-[10px]">
+            Live Requests
+          </Badge>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="flex flex-col lg:flex-row gap-4 items-end justify-between mb-8">
+            <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
+              <div className="flex flex-col gap-1.5 w-full sm:w-auto">
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest pl-1">Date Range</Label>
                 <div className="flex items-center gap-2">
-                  <div className="relative">
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400">
-                      <rect
-                        x="3"
-                        y="4"
-                        width="18"
-                        height="18"
-                        rx="2"
-                        ry="2"></rect>
-                      <line x1="16" y1="2" x2="16" y2="6"></line>
-                      <line x1="8" y1="2" x2="8" y2="6"></line>
-                      <line x1="3" y1="10" x2="21" y2="10"></line>
-                    </svg>
-                    <input
-                      type="text"
-                      value={fromDate}
-                      onChange={(e) => setFromDate(e.target.value)}
-                      placeholder="MM/DD/YYYY"
-                      className="pl-10 pr-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 min-w-[140px]"
-                    />
-                  </div>
-                  <span className="text-neutral-500">-</span>
-                  <div className="relative">
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400">
-                      <rect
-                        x="3"
-                        y="4"
-                        width="18"
-                        height="18"
-                        rx="2"
-                        ry="2"></rect>
-                      <line x1="16" y1="2" x2="16" y2="6"></line>
-                      <line x1="8" y1="2" x2="8" y2="6"></line>
-                      <line x1="3" y1="10" x2="21" y2="10"></line>
-                    </svg>
-                    <input
-                      type="text"
-                      value={toDate}
-                      onChange={(e) => setToDate(e.target.value)}
-                      placeholder="MM/DD/YYYY"
-                      className="pl-10 pr-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 min-w-[140px]"
-                    />
-                  </div>
-                  <button
-                    onClick={handleClearDate}
-                    className="px-3 py-2 bg-neutral-700 hover:bg-neutral-800 text-white rounded text-sm transition-colors">
-                    Clear
-                  </button>
+                  <Input
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    className="w-[140px] h-9 text-xs bg-muted/50 border-border"
+                  />
+                  <span className="text-muted-foreground">/</span>
+                  <Input
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    className="w-[140px] h-9 text-xs bg-muted/50 border-border"
+                  />
                 </div>
               </div>
 
-              {/* Filter by Seller */}
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-neutral-700 whitespace-nowrap">
-                  Filter by Seller:
-                </label>
-                <select
-                  value={selectedSeller}
-                  onChange={(e) => {
-                    setSelectedSeller(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="px-3 py-2 border border-neutral-300 rounded text-sm bg-white focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 min-w-[130px]">
-                  {sellers.map((seller) => (
-                    <option
-                      key={seller}
-                      value={seller === "All Seller" ? "all" : seller}>
-                      {seller}
-                    </option>
-                  ))}
-                </select>
+              <div className="flex flex-col gap-1.5 w-full sm:w-auto">
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest pl-1">Status</Label>
+                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                  <SelectTrigger className="w-[160px] h-9 text-xs bg-muted/50 border-border">
+                    <SelectValue placeholder="All Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Every Status</SelectItem>
+                    <SelectItem value="Pending">Only Pending</SelectItem>
+                    <SelectItem value="Approved">Approved</SelectItem>
+                    <SelectItem value="Rejected">Rejected</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
-              {/* Filter by Status */}
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-neutral-700 whitespace-nowrap">
-                  Filter by Status:
-                </label>
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => {
-                    setSelectedStatus(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="px-3 py-2 border border-neutral-300 rounded text-sm bg-white focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 min-w-[130px]">
-                  {statuses.map((status) => (
-                    <option
-                      key={status}
-                      value={status === "All Status" ? "all" : status}>
-                      {status}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Right Side Controls */}
-            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-              {/* Per Page */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-neutral-700">Per Page:</span>
-                <select
-                  value={entriesPerPage}
-                  onChange={(e) => {
-                    setEntriesPerPage(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="px-2 py-1 border border-neutral-300 rounded text-sm bg-white focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500">
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-
-              {/* Export Button */}
-              <button
-                onClick={handleExport}
-                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded text-sm font-medium flex items-center gap-2 transition-colors">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="7 10 12 15 17 10"></polyline>
-                  <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-                Export
-                <svg
-                  width="10"
-                  height="10"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round">
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-              </button>
-
-              {/* Search */}
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-neutral-700">Search:</label>
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  placeholder="Search:"
-                  className="px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 min-w-[150px]"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1400px]">
-            <thead className="bg-neutral-50 border-b border-neutral-200">
-              <tr>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("orderItemId")}>
-                  <div className="flex items-center gap-2">
-                    Order Item Id
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("user")}>
-                  <div className="flex items-center gap-2">
-                    User
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("product")}>
-                  <div className="flex items-center gap-2">
-                    Product
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("variant")}>
-                  <div className="flex items-center gap-2">
-                    Variant
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("price")}>
-                  <div className="flex items-center gap-2">
-                    Price
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("discPrice")}>
-                  <div className="flex items-center gap-2">
-                    Disc Price
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("quantity")}>
-                  <div className="flex items-center gap-2">
-                    Quantity
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("total")}>
-                  <div className="flex items-center gap-2">
-                    Total
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("status")}>
-                  <div className="flex items-center gap-2">
-                    Status
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("date")}>
-                  <div className="flex items-center gap-2">
-                    Date
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-                <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-neutral-200">
-              {loading ? (
-                <tr>
-                  <td colSpan={11} className="px-4 sm:px-6 py-8 text-center">
-                    <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-600 mr-2"></div>
-                      Loading return requests...
-                    </div>
-                  </td>
-                </tr>
-              ) : error ? (
-                <tr>
-                  <td
-                    colSpan={11}
-                    className="px-4 sm:px-6 py-8 text-center text-red-600">
-                    {error}
-                  </td>
-                </tr>
-              ) : displayedRequests.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={11}
-                    className="px-4 sm:px-6 py-8 text-center text-sm text-neutral-500">
-                    No return requests found
-                  </td>
-                </tr>
-              ) : (
-                displayedRequests.map((request) => (
-                  <tr key={request._id} className="hover:bg-neutral-50">
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-900">
-                      {request.orderItemId}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-900 font-medium">
-                      {request.userName}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-600">
-                      {request.productName}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-600">
-                      {request.variant || "-"}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-900">
-                      ₹{request.price.toFixed(2)}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-900">
-                      ₹{(request.discountedPrice || request.price).toFixed(2)}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-600">
-                      {request.quantity}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-900 font-medium">
-                      ₹{request.total.toFixed(2)}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${request.status === "Approved"
-                          ? "bg-green-100 text-green-800"
-                          : request.status === "Pending"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : request.status === "Rejected"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-blue-100 text-blue-800"
-                          }`}>
-                        {request.status}
-                      </span>
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-600">
-                      {new Date(request.requestedAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3">
-                      <div className="flex items-center gap-2">
-                        {request.status === "Pending" ? (
-                          <>
-                            <button
-                              onClick={() => handleApproveReturn(request._id)}
-                              disabled={updating === request._id}
-                              className="p-1.5 bg-green-100 hover:bg-green-200 disabled:bg-neutral-100 disabled:text-neutral-400 text-green-700 rounded transition-colors"
-                              title="Approve">
-                              <svg
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => handleRejectReturn(request._id)}
-                              disabled={updating === request._id}
-                              className="p-1.5 bg-red-100 hover:bg-red-200 disabled:bg-neutral-100 disabled:text-neutral-400 text-red-700 rounded transition-colors"
-                              title="Reject">
-                              <svg
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round">
-                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                <line x1="6" y1="6" x2="18" y2="18"></line>
-                              </svg>
-                            </button>
-                          </>
-                        ) : (
-                          <span className="text-sm text-neutral-400">
-                            {request.status === "Approved"
-                              ? "Approved"
-                              : "Rejected"}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+              {(fromDate || toDate || selectedStatus !== "all") && (
+                <Button variant="ghost" size="sm" className="h-9 gap-2 text-muted-foreground mt-auto" onClick={handleClearFilters}>
+                  <FilterX className="h-4 w-4" /> Reset
+                </Button>
               )}
-            </tbody>
-          </table>
-        </div>
+            </div>
 
-        {/* Pagination Footer */}
-        <div className="px-4 sm:px-6 py-3 border-t border-neutral-200 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0">
-          <div className="text-xs sm:text-sm text-neutral-700">
-            Showing {startIndex + 1} to{" "}
-            {Math.min(endIndex, displayedRequests.length)} of{" "}
-            {displayedRequests.length} entries
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-              disabled={currentPage === 1 || totalPages === 0}
-              className={`p-2 border border-green-300 rounded bg-white ${currentPage === 1 || totalPages === 0
-                ? "text-neutral-400 cursor-not-allowed"
-                : "text-neutral-700 hover:bg-green-50"
-                }`}
-              aria-label="Previous page">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M15 18L9 12L15 6"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+            <div className="flex items-center gap-3 w-full lg:w-auto">
+              <div className="relative flex-1 sm:w-64">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search order ID, user..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 h-9 text-sm bg-muted/50 border-border shadow-inner"
                 />
-              </svg>
-            </button>
-            <button
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-              }
-              disabled={currentPage === totalPages || totalPages === 0}
-              className={`p-2 border border-green-300 rounded bg-white ${currentPage === totalPages || totalPages === 0
-                ? "text-neutral-400 cursor-not-allowed"
-                : "text-neutral-700 hover:bg-green-50"
-                }`}
-              aria-label="Next page">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M9 18L15 12L9 6"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
+              </div>
+              <Select value={rowsPerPage} onValueChange={setRowsPerPage}>
+                <SelectTrigger className="w-20 h-9 bg-muted/50 border-border text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Footer */}
-      <div className="text-center text-sm text-neutral-500 py-4">
-        Copyright Â© 2025. Developed By{" "}
-        <a href="#" className="text-teal-600 hover:text-teal-700">
-          Dhakad Snazzy - 10 Minute App
-        </a>
-      </div>
+          <DataTable
+            columns={columns}
+            data={returnRequests}
+            loading={loading}
+            emptyMessage="No return requests discovered."
+          />
+
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
+              <MessageSquare className="h-4 w-4" />
+              Displaying <span className="text-foreground font-bold">{returnRequests.length}</span> requests
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1 || loading}
+                className="h-8 shadow-sm border-border"
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" /> Prev
+              </Button>
+              <div className="flex items-center justify-center h-8 min-w-[32px] px-3 rounded-md bg-muted font-bold text-xs">
+                {currentPage}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => p + 1)}
+                disabled={returnRequests.length < parseInt(rowsPerPage) || loading}
+                className="h-8 shadow-sm border-border"
+              >
+                Next <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
-

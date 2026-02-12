@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Suspense, lazy, startTransition } from "react";
 import { CartProvider } from "./context/CartContext";
 import { OrdersProvider } from "./context/OrdersContext";
@@ -155,14 +155,13 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <LoadingProvider>
-        <AxiosLoadingInterceptor>
-          <IconLoader />
-          <AuthProvider>
-            <ThemeProvider>
+      <ThemeProvider>
+        <LoadingProvider>
+          <AxiosLoadingInterceptor>
+            <IconLoader />
+            <AuthProvider>
               <LocationProvider>
                 <ToastProvider>
-
                   <CartProvider>
                     <OrdersProvider>
                       <BrowserRouter
@@ -187,7 +186,7 @@ function App() {
                           <Route
                             path="/seller/login"
                             element={
-                              <PublicRoute>
+                              <PublicRoute userType="Seller">
                                 <Suspense fallback={<IconLoader forceShow />}>
                                   <SellerLogin />
                                 </Suspense>
@@ -197,7 +196,7 @@ function App() {
                           <Route
                             path="/seller/signup"
                             element={
-                              <PublicRoute>
+                              <PublicRoute userType="Seller">
                                 <Suspense fallback={<IconLoader forceShow />}>
                                   <SellerSignUp />
                                 </Suspense>
@@ -207,7 +206,7 @@ function App() {
                           <Route
                             path="/delivery/login"
                             element={
-                              <PublicRoute>
+                              <PublicRoute userType="Delivery">
                                 <Suspense fallback={<IconLoader forceShow />}>
                                   <DeliveryLogin />
                                 </Suspense>
@@ -217,7 +216,7 @@ function App() {
                           <Route
                             path="/delivery/signup"
                             element={
-                              <PublicRoute>
+                              <PublicRoute userType="Delivery">
                                 <Suspense fallback={<IconLoader forceShow />}>
                                   <DeliverySignUp />
                                 </Suspense>
@@ -227,7 +226,7 @@ function App() {
                           <Route
                             path="/admin/login"
                             element={
-                              <PublicRoute>
+                              <PublicRoute userType="Admin">
                                 <Suspense fallback={<IconLoader forceShow />}>
                                   <AdminLogin />
                                 </Suspense>
@@ -358,6 +357,9 @@ function App() {
                             }
                           />
 
+                          {/* Redirect /vendor to /seller */}
+                          <Route path="/vendor/*" element={<Navigate to="/seller" replace />} />
+
                           {/* Main App Routes */}
                           <Route
                             path="/*"
@@ -404,11 +406,10 @@ function App() {
                   </CartProvider>
                 </ToastProvider>
               </LocationProvider>
-
-            </ThemeProvider>
-          </AuthProvider>
-        </AxiosLoadingInterceptor>
-      </LoadingProvider>
+            </AuthProvider>
+          </AxiosLoadingInterceptor>
+        </LoadingProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }

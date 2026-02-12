@@ -1,12 +1,13 @@
 import { useLayoutEffect, useRef, useState, useEffect, useCallback } from "react";
 import { gsap } from "gsap";
 import { Link, useNavigate } from "react-router-dom";
-import { getTheme } from "../../../utils/themes";
-import { getHomeContent } from "../../../services/api/customerHomeService";
-import { getSubcategories } from "../../../services/api/categoryService";
-import { apiCache } from "../../../utils/apiCache";
-import { useLocation } from "../../../hooks/useLocation";
-import { calculateProductPrice } from "../../../utils/priceUtils";
+import { Zap, Clock, Snowflake, Star, Zap as BoltIcon } from "lucide-react";
+import { getTheme } from "@/utils/themes";
+import { getHomeContent } from "@/services/api/customerHomeService";
+import { getSubcategories } from "@/services/api/categoryService";
+import { apiCache } from "@/utils/apiCache";
+import { useLocation } from "@/hooks/useLocation";
+import { calculateProductPrice } from "@/utils/priceUtils";
 
 interface PromoCard {
   id: string;
@@ -69,42 +70,42 @@ export default function PromoStrip({ activeTab = "all" }: PromoStripProps) {
     // Defer subcategory image fetching to not block initial render
     // Load them after a short delay to prioritize main content
     setTimeout(async () => {
-    const imagesMap: Record<string, string[]> = {};
+      const imagesMap: Record<string, string[]> = {};
 
       // Fetch images in batches to avoid overwhelming the network
       const batchSize = 2;
       for (let i = 0; i < cards.length; i += batchSize) {
         const batch = cards.slice(i, i + batchSize);
-    await Promise.all(
+        await Promise.all(
           batch.map(async (card) => {
-        const categoryId = card.categoryId;
-        if (!categoryId) return;
+            const categoryId = card.categoryId;
+            if (!categoryId) return;
 
-        try {
-          const response = await getSubcategories(categoryId, { limit: 4 });
-          if (response.success && response.data) {
-            const images = response.data
-              .filter((subcat) => subcat.subcategoryImage)
-              .map((subcat) => subcat.subcategoryImage!)
-              .slice(0, 4);
+            try {
+              const response = await getSubcategories(categoryId, { limit: 4 });
+              if (response.success && response.data) {
+                const images = response.data
+                  .filter((subcat) => subcat.subcategoryImage)
+                  .map((subcat) => subcat.subcategoryImage!)
+                  .slice(0, 4);
 
-            if (images.length > 0) {
-              imagesMap[card.id] = images;
-            }
-          }
-        } catch (error) {
+                if (images.length > 0) {
+                  imagesMap[card.id] = images;
+                }
+              }
+            } catch (error) {
               // Silently fail - emoji fallback will be used
-          console.error(`Error fetching subcategories for category ${categoryId}:`, error);
-        }
-      })
-    );
+              console.error(`Error fetching subcategories for category ${categoryId}:`, error);
+            }
+          })
+        );
         // Small delay between batches to prevent network congestion
         if (i + batchSize < cards.length) {
           await new Promise(resolve => setTimeout(resolve, 50));
         }
       }
 
-    setSubcategoryImagesMap(imagesMap);
+      setSubcategoryImagesMap(imagesMap);
     }, 300); // 300ms delay - allows main content to render first
   }, []);
 
@@ -172,7 +173,7 @@ export default function PromoStrip({ activeTab = "all" }: PromoStripProps) {
                     categoryId: category?._id || card.categoryId, // Use _id for fetching subcategories
                     slug: category?.slug || card.categoryId, // Use slug for navigation
                     imageUrl: category?.image,
-                    bgColor: "bg-yellow-50",
+                    bgColor: "bg-white",
                   };
                 });
             }
@@ -319,21 +320,21 @@ export default function PromoStrip({ activeTab = "all" }: PromoStripProps) {
     // Defer card animation to prioritize content rendering
     const timeoutId = setTimeout(() => {
       ctx = gsap.context(() => {
-      const cards = container.querySelectorAll(".promo-card");
-      if (cards.length > 0) {
-        gsap.fromTo(
-          cards,
+        const cards = container.querySelectorAll(".promo-card");
+        if (cards.length > 0) {
+          gsap.fromTo(
+            cards,
             { y: 20, opacity: 0 },
-          {
-            y: 0,
-            opacity: 1,
+            {
+              y: 0,
+              opacity: 1,
               duration: 0.4, // Reduced duration
               stagger: 0.05, // Reduced stagger
               ease: "power2.out", // Simpler easing
-          }
-        );
-      }
-    }, container);
+            }
+          );
+        }
+      }, container);
     }, 100); // Start animation 100ms after render
 
     return () => {
@@ -352,29 +353,29 @@ export default function PromoStrip({ activeTab = "all" }: PromoStripProps) {
 
     // Defer animation start to prioritize content rendering
     const timeoutId = setTimeout(() => {
-    const snowflakes = snowflakesContainer.querySelectorAll(".snowflake");
+      const snowflakes = snowflakesContainer.querySelectorAll(".snowflake");
 
-    snowflakes.forEach((snowflake, index) => {
-      const delay = index * 0.3;
-      const duration = 3 + Math.random() * 2; // 3-5 seconds
-      const xOffset = (Math.random() - 0.5) * 40; // Random horizontal drift
+      snowflakes.forEach((snowflake, index) => {
+        const delay = index * 0.3;
+        const duration = 3 + Math.random() * 2; // 3-5 seconds
+        const xOffset = (Math.random() - 0.5) * 40; // Random horizontal drift
 
-      gsap.set(snowflake, {
-        y: -20,
-        x: xOffset,
-        opacity: 0.8 + Math.random() * 0.2, // 0.8-1.0 opacity for better visibility
-        scale: 0.6 + Math.random() * 0.4, // 0.6-1.0 scale for better visibility
+        gsap.set(snowflake, {
+          y: -20,
+          x: xOffset,
+          opacity: 0.8 + Math.random() * 0.2, // 0.8-1.0 opacity for better visibility
+          scale: 0.6 + Math.random() * 0.4, // 0.6-1.0 scale for better visibility
+        });
+
+        gsap.to(snowflake, {
+          y: "+=200",
+          x: `+=${xOffset}`,
+          duration: duration,
+          delay: delay,
+          ease: "none",
+          repeat: -1,
+        });
       });
-
-      gsap.to(snowflake, {
-        y: "+=200",
-        x: `+=${xOffset}`,
-        duration: duration,
-        delay: delay,
-        ease: "none",
-        repeat: -1,
-      });
-    });
     }, 200); // Start animation 200ms after render
 
     return () => {
@@ -396,7 +397,7 @@ export default function PromoStrip({ activeTab = "all" }: PromoStripProps) {
 
     // Defer animation start to prioritize content rendering
     const timeoutId = setTimeout(() => {
-    const letters = housefullContainer.querySelectorAll(".housefull-letter");
+      const letters = housefullContainer.querySelectorAll(".housefull-letter");
 
       // Simplified animation - single entrance animation instead of loop
       gsap.set([housefullContainer, saleText, dateText], {
@@ -406,9 +407,9 @@ export default function PromoStrip({ activeTab = "all" }: PromoStripProps) {
 
       gsap.to([housefullContainer, saleText, dateText], {
         scale: 1,
-          opacity: 1,
-          duration: 0.5,
-          ease: "back.out(1.7)",
+        opacity: 1,
+        duration: 0.5,
+        ease: "back.out(1.7)",
       });
 
       // Simplified letter animation - only run once
@@ -416,7 +417,7 @@ export default function PromoStrip({ activeTab = "all" }: PromoStripProps) {
         y: -10,
         duration: 0.15,
         stagger: 0.04,
-          ease: "power2.out",
+        ease: "power2.out",
         yoyo: true,
         repeat: 1,
       });
@@ -489,19 +490,27 @@ export default function PromoStrip({ activeTab = "all" }: PromoStripProps) {
 
   const currentProduct = featuredProducts.length > 0 ? featuredProducts[currentProductIndex] : null;
 
-  // Show minimal loading state - render faster
+  // Enhanced skeleton loading state
   if (loading) {
     return (
       <div
-        className="relative"
+        className="relative py-4"
         style={{
           background: `linear-gradient(to bottom, ${theme.primary[0]}, ${theme.primary[1]}, ${theme.primary[2]}, ${theme.primary[3]}, ${theme.primary[3]})`,
-          paddingTop: "12px",
-          paddingBottom: "0px",
-          marginTop: 0,
-          minHeight: "200px"
-        }}>
-        <div className="h-[200px] w-full bg-transparent animate-pulse rounded-lg mx-0 mt-4" />
+        }}
+      >
+        <div className="px-4 space-y-4">
+          <div className="h-12 w-3/4 mx-auto bg-white/20 animate-pulse rounded-xl" />
+          <div className="flex gap-2">
+            <div className="flex-shrink-0 w-[100px] h-[120px] bg-white/20 animate-pulse rounded-xl" />
+            <div className="flex-1 grid grid-cols-2 gap-2 h-[120px]">
+              <div className="bg-white/20 animate-pulse rounded-xl" />
+              <div className="bg-white/20 animate-pulse rounded-xl" />
+              <div className="bg-white/20 animate-pulse rounded-xl" />
+              <div className="bg-white/20 animate-pulse rounded-xl" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -554,12 +563,13 @@ export default function PromoStrip({ activeTab = "all" }: PromoStripProps) {
 
   return (
     <div
-      className="relative"
+      className="relative overflow-hidden"
       style={{
-        background: `linear-gradient(to bottom, ${theme.primary[0]}, ${theme.primary[1]}, ${theme.primary[2]}, ${theme.primary[3]}, ${theme.primary[3]})`,
+        background: `linear-gradient(to bottom, ${theme.primary[0]}, ${theme.primary[1]} 80%, ${theme.primary[1]})`,
         paddingTop: "12px",
-        paddingBottom: "0px",
+        paddingBottom: "32px",
         marginTop: 0,
+        boxShadow: "0 8px 32px rgba(0,0,0,0.06)",
       }}>
       {/* HOUSEFULL SALE Banner */}
       <div
@@ -607,23 +617,13 @@ export default function PromoStrip({ activeTab = "all" }: PromoStripProps) {
                 right: `${5 + (i % 4) * 12}%`,
                 top: `${Math.floor(i / 4) * 30}px`,
               }}>
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
+              <Snowflake
+                size={16}
+                className="text-white/80"
                 style={{
                   filter: "drop-shadow(0 0 2px rgba(255, 255, 255, 0.9))",
-                }}>
-                <path
-                  d="M12 1V5M12 19V23M3 12H1M23 12H21M20.5 20.5L18.5 18.5M20.5 3.5L18.5 5.5M3.5 20.5L5.5 18.5M3.5 3.5L5.5 5.5M18.5 18.5L16.5 16.5M18.5 5.5L16.5 7.5M5.5 18.5L7.5 16.5M5.5 5.5L7.5 7.5"
-                  stroke="rgba(255, 255, 255, 1)"
-                  strokeWidth="1.2"
-                  strokeLinecap="round"
-                />
-                <circle cx="12" cy="12" r="1.8" fill="rgba(255, 255, 255, 1)" />
-              </svg>
+                }}
+              />
             </div>
           ))}
         </div>
@@ -631,37 +631,23 @@ export default function PromoStrip({ activeTab = "all" }: PromoStripProps) {
         <div className="relative z-10">
           <div className="flex items-center justify-center gap-3 mb-0">
             {/* Left Lightning Bolt */}
-            <svg
-              width="28"
-              height="36"
-              viewBox="0 0 24 30"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="flex-shrink-0">
-              <path
-                d="M13 2L3 14H12L11 22L21 10H12L13 2Z"
-                fill="#FFD700"
-                stroke="#FFA500"
-                strokeWidth="0.5"
-              />
-            </svg>
+            <BoltIcon
+              size={28}
+              className="flex-shrink-0 text-yellow-400 fill-yellow-400 drop-shadow-[0_0_8px_rgba(255,215,0,0.6)]"
+              strokeWidth={1}
+            />
 
             {/* HOUSEFULL Text */}
             <h1
               ref={housefullRef}
-              className="text-3xl font-black text-white"
+              className="text-3xl font-black text-white tracking-tight"
               style={
                 {
-                  fontFamily: '"Poppins", sans-serif',
-                  letterSpacing: "1.5px",
-                  lineHeight: "1.1",
+                  fontFamily: '"Outfit", "Poppins", sans-serif',
+                  letterSpacing: "1px",
+                  lineHeight: "1",
                   textShadow:
-                    `-2px -2px 0 ${theme.accentColor}, 2px -2px 0 ${theme.accentColor}, -2px 2px 0 ${theme.accentColor}, 2px 2px 0 ${theme.accentColor}, ` +
-                    `-2px 0px 0 ${theme.accentColor}, 2px 0px 0 ${theme.accentColor}, 0px -2px 0 ${theme.accentColor}, 0px 2px 0 ${theme.accentColor}, ` +
-                    `-1px -1px 0 ${theme.accentColor}, 1px -1px 0 ${theme.accentColor}, -1px 1px 0 ${theme.accentColor}, 1px 1px 0 ${theme.accentColor}, ` +
-                    "0px 2px 0px rgba(0, 0, 0, 0.8), 0px 4px 0px rgba(0, 0, 0, 0.6), " +
-                    "0px 6px 0px rgba(0, 0, 0, 0.4), 0px 8px 8px rgba(0, 0, 0, 0.3), " +
-                    "2px 2px 2px rgba(0, 0, 0, 0.5)",
+                    `0 2px 0 ${theme.accentColor}, 0 4px 0 ${theme.accentColor}, 0 6px 1px rgba(0,0,0,0.1), 0 0 5px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.3), 0 3px 5px rgba(0,0,0,0.2), 0 5px 10px rgba(0,0,0,0.25), 0 10px 10px rgba(0,0,0,0.2), 0 20px 20px rgba(0,0,0,0.15)`,
                 } as React.CSSProperties
               }>
               {headingText.split("").map((letter, index) => (
@@ -672,21 +658,11 @@ export default function PromoStrip({ activeTab = "all" }: PromoStripProps) {
             </h1>
 
             {/* Right Lightning Bolt */}
-            <svg
-              width="28"
-              height="36"
-              viewBox="0 0 24 30"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="flex-shrink-0"
-              style={{ transform: "scaleX(-1)" }}>
-              <path
-                d="M13 2L3 14H12L11 22L21 10H12L13 2Z"
-                fill="#FFD700"
-                stroke="#FFA500"
-                strokeWidth="0.5"
-              />
-            </svg>
+            <BoltIcon
+              size={28}
+              className="flex-shrink-0 text-yellow-400 fill-yellow-400 drop-shadow-[0_0_8px_rgba(255,215,0,0.6)] -scale-x-100"
+              strokeWidth={1}
+            />
           </div>
 
           {/* SALE Text */}
@@ -739,12 +715,11 @@ export default function PromoStrip({ activeTab = "all" }: PromoStripProps) {
               {/* CRAZY DEALS - Two lines, bigger */}
               <div className="text-center mb-1.5" style={{ marginTop: "4px" }}>
                 <div
-                  className="text-white font-black leading-tight"
+                  className="text-white font-black leading-tight uppercase"
                   style={{
-                    fontSize: "13px",
+                    fontSize: "12px",
                     fontFamily: "sans-serif",
-                    textShadow:
-                      "2px 2px 4px rgba(0, 0, 0, 0.8), 1px 1px 2px rgba(0, 0, 0, 0.9)",
+                    textShadow: "0 2px 4px rgba(0,0,0,0.3)",
                     letterSpacing: "0.5px",
                   }}>
                   {crazyDealsTitle.split(" ").map((word, idx) => (
@@ -859,10 +834,10 @@ export default function PromoStrip({ activeTab = "all" }: PromoStripProps) {
                 <div key={card.id} className="promo-card">
                   <Link
                     to={card.slug || card.categoryId ? `/category/${card.slug || card.categoryId}` : "#"}
-                    className="group rounded-lg transition-all duration-300 hover:shadow-md active:scale-[0.98] h-full flex flex-col overflow-hidden relative"
+                    className="group rounded-xl transition-all duration-300 hover:shadow-xl active:scale-[0.98] h-full flex flex-col overflow-hidden relative shadow-md group-hover:border-[hsl(var(--user-accent))]/30 border border-transparent"
                     style={{
-                      minHeight: "90px",
-                      background: "rgba(255, 247, 237, 0.9)", // Very light orange
+                      minHeight: "100px",
+                      background: "white",
                     }}>
                     {/* Green Discount Banner - Only around text, centered at top */}
                     <div
@@ -893,48 +868,48 @@ export default function PromoStrip({ activeTab = "all" }: PromoStripProps) {
                         style={{ marginTop: "auto" }}>
                         {hasSubcategoryImages
                           ? // Display subcategory images as small icons
-                            subcategoryImages.slice(0, 4).map((imageUrl, idx) => (
-                                <div
-                                  key={idx}
-                                  className="flex-shrink-0 bg-white rounded flex items-center justify-center overflow-hidden border border-neutral-200"
-                                  style={{ width: "24px", height: "24px" }}>
-                                  <img
-                                    src={imageUrl}
-                                    alt={`Subcategory ${idx + 1}`}
-                                    className="w-full h-full object-cover"
-                                    loading="lazy"
-                                    decoding="async"
-                                    onError={(e) => {
-                                      // Fallback to emoji if image fails to load
-                                      const target =
-                                        e.target as HTMLImageElement;
-                                      target.style.display = "none";
-                                      const parent = target.parentElement;
-                                      if (parent) {
-                                        parent.innerHTML =
-                                          categoryIcons[idx] || "📦";
-                                        parent.style.fontSize = "18px";
-                                        parent.style.display = "flex";
-                                        parent.style.alignItems = "center";
-                                        parent.style.justifyContent = "center";
-                                      }
-                                    }}
-                                  />
-                                </div>
-                              ))
+                          subcategoryImages.slice(0, 4).map((imageUrl, idx) => (
+                            <div
+                              key={idx}
+                              className="flex-shrink-0 bg-white rounded flex items-center justify-center overflow-hidden border border-neutral-200"
+                              style={{ width: "24px", height: "24px" }}>
+                              <img
+                                src={imageUrl}
+                                alt={`Subcategory ${idx + 1}`}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                                decoding="async"
+                                onError={(e) => {
+                                  // Fallback to emoji if image fails to load
+                                  const target =
+                                    e.target as HTMLImageElement;
+                                  target.style.display = "none";
+                                  const parent = target.parentElement;
+                                  if (parent) {
+                                    parent.innerHTML =
+                                      categoryIcons[idx] || "📦";
+                                    parent.style.fontSize = "18px";
+                                    parent.style.display = "flex";
+                                    parent.style.alignItems = "center";
+                                    parent.style.justifyContent = "center";
+                                  }
+                                }}
+                              />
+                            </div>
+                          ))
                           : // Fallback to emoji icons if no subcategory images
-                            categoryIcons.slice(0, 4).map((icon, idx) => (
-                              <div
-                                key={idx}
-                                className="flex-shrink-0 bg-transparent rounded flex items-center justify-center overflow-hidden"
-                                style={{
-                                  width: "24px",
-                                  height: "24px",
-                                  fontSize: "18px",
-                                }}>
-                                {icon}
-                              </div>
-                            ))}
+                          categoryIcons.slice(0, 4).map((icon, idx) => (
+                            <div
+                              key={idx}
+                              className="flex-shrink-0 bg-transparent rounded flex items-center justify-center overflow-hidden"
+                              style={{
+                                width: "24px",
+                                height: "24px",
+                                fontSize: "18px",
+                              }}>
+                              {icon}
+                            </div>
+                          ))}
                       </div>
                     </div>
                   </Link>

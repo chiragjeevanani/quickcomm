@@ -8,8 +8,41 @@ import {
   CreateSystemUserData,
   UpdateSystemUserData,
 } from '../../../services/api/admin/adminSystemUserService';
+import { useToast } from "../../../context/ToastContext";
+import PageHeader from "../components/ui/PageHeader";
+import DataTable from "../components/ui/DataTable";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Search,
+  UserPlus,
+  Edit,
+  Trash2,
+  Shield,
+  Mail,
+  Phone,
+  Key,
+  UserCheck,
+  ChevronLeft,
+  ChevronRight,
+  FilterX,
+  MoreHorizontal,
+  ShieldAlert,
+  ShieldCheck
+} from "lucide-react";
+import { Label } from "@/components/ui/label";
 
 export default function AdminSystemUser() {
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     role: '' as '' | 'Admin' | 'Super Admin',
     firstName: '',
@@ -19,67 +52,45 @@ export default function AdminSystemUser() {
     password: '',
     confirmPassword: '',
   });
-  const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState('10');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [systemUsers, setSystemUsers] = useState<SystemUserType[]>([]);
   const [loading, setLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [error, setError] = useState('');
-  const [totalPages, setTotalPages] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
 
-  // Only Admin and Super Admin roles
   const roles: ('Admin' | 'Super Admin')[] = ['Admin', 'Super Admin'];
 
-  // Debounce search term
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setCurrentPage(1); // Reset to first page when search changes
-    }, 500); // 500ms delay
-
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
-  // Fetch system users on component mount and when filters change
   useEffect(() => {
     fetchSystemUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, entriesPerPage, searchTerm, sortColumn, sortDirection]);
+  }, [currentPage, rowsPerPage, searchTerm]);
 
   const fetchSystemUsers = async () => {
     setLoading(true);
-    setError('');
     try {
       const response = await getAllSystemUsers({
         page: currentPage,
-        limit: entriesPerPage,
+        limit: parseInt(rowsPerPage),
         search: searchTerm || undefined,
-        sortBy: sortColumn || 'createdAt',
-        sortOrder: sortDirection,
+        sortBy: 'firstName',
+        sortOrder: 'asc',
       });
 
       if (response.success && response.data) {
         setSystemUsers(response.data);
         if (response.pagination) {
-          setTotalPages(response.pagination.pages);
           setTotalUsers(response.pagination.total);
         }
-      } else {
-        setError(response.message || 'Failed to fetch system users');
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Error fetching system users');
+      showToast(err.response?.data?.message || 'Error fetching system users', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+  const handleInputChange = (name: string, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -97,55 +108,18 @@ export default function AdminSystemUser() {
   };
 
   const handleAddSystemUser = async () => {
-    setError('');
-    setSuccessMessage('');
-
-    // Validation
-    if (!formData.role) {
-      setError('Please select a role');
-      return;
-    }
-    if (!formData.firstName.trim()) {
-      setError('Please enter first name');
-      return;
-    }
-    if (!formData.lastName.trim()) {
-      setError('Please enter last name');
-      return;
-    }
-    if (!formData.mobile.trim()) {
-      setError('Please enter mobile number');
-      return;
-    }
-    if (!/^[0-9]{10}$/.test(formData.mobile)) {
-      setError('Mobile number must be exactly 10 digits');
-      return;
-    }
-    if (!formData.email.trim()) {
-      setError('Please enter email');
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      setError('Please enter a valid email address');
-      return;
-    }
-    if (editingId === null && !formData.password.trim()) {
-      setError('Please enter password');
-      return;
-    }
-    if (formData.password.trim() && formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
-    if (formData.password !== formData.confirmPassword) {
-      setError('Password and Confirm Password do not match');
-      return;
-    }
+    if (!formData.role) return showToast('Please select a role', 'warning');
+    if (!formData.firstName.trim()) return showToast('First name required', 'warning');
+    if (!formData.lastName.trim()) return showToast('Last name required', 'warning');
+    if (!/^[0-9]{10}$/.test(formData.mobile)) return showToast('10-digit mobile required', 'warning');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return showToast('Valid email required', 'warning');
+    if (editingId === null && !formData.password.trim()) return showToast('Password required', 'warning');
+    if (formData.password.trim() && formData.password.length < 6) return showToast('Password min 6 chars', 'warning');
+    if (formData.password !== formData.confirmPassword) return showToast('Passwords do not match', 'warning');
 
     setLoading(true);
     try {
       if (editingId !== null) {
-        // Update existing user
         const updateData: UpdateSystemUserData = {
           firstName: formData.firstName,
           lastName: formData.lastName,
@@ -153,20 +127,15 @@ export default function AdminSystemUser() {
           email: formData.email,
           role: formData.role,
         };
-        if (formData.password.trim()) {
-          updateData.password = formData.password;
-        }
+        if (formData.password.trim()) updateData.password = formData.password;
 
         const response = await updateSystemUser(editingId, updateData);
         if (response.success) {
-          setSuccessMessage('System user updated successfully!');
+          showToast('System user updated!', 'success');
           resetForm();
           fetchSystemUsers();
-        } else {
-          setError(response.message || 'Failed to update system user');
         }
       } else {
-        // Create new user
         const createData: CreateSystemUserData = {
           firstName: formData.firstName,
           lastName: formData.lastName,
@@ -178,15 +147,13 @@ export default function AdminSystemUser() {
 
         const response = await createSystemUser(createData);
         if (response.success) {
-          setSuccessMessage('System user added successfully!');
+          showToast('System user added!', 'success');
           resetForm();
           fetchSystemUsers();
-        } else {
-          setError(response.message || 'Failed to create system user');
         }
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Error saving system user');
+      showToast(err.response?.data?.message || 'Error saving user', 'error');
     } finally {
       setLoading(false);
     }
@@ -205,505 +172,308 @@ export default function AdminSystemUser() {
         confirmPassword: '',
       });
       setEditingId(id);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this system user?')) {
-      return;
-    }
-
+    if (!window.confirm('Are you sure you want to delete this system user?')) return;
     setLoading(true);
-    setError('');
-    setSuccessMessage('');
     try {
       const response = await deleteSystemUser(id);
       if (response.success) {
-        setSuccessMessage('System user deleted successfully!');
+        showToast('System user deleted!', 'success');
         fetchSystemUsers();
-      } else {
-        setError(response.message || 'Failed to delete system user');
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Error deleting system user');
+      showToast(err.response?.data?.message || 'Error deleting user', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCancelEdit = () => {
-    resetForm();
-  };
-
-  const handleSort = (column: string) => {
-    // Map frontend column names to backend field names
-    const columnMap: Record<string, string> = {
-      'id': '_id',
-      'name': 'firstName',
-      '_id': '_id',
-      'firstName': 'firstName',
-      'mobile': 'mobile',
-      'email': 'email',
-      'role': 'role',
-    };
-    const backendColumn = columnMap[column] || column;
-    
-    if (sortColumn === backendColumn) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortColumn(backendColumn);
-      setSortDirection('asc');
+  const columns = [
+    {
+      header: "Identity / ID",
+      accessorKey: "firstName",
+      cell: (u: SystemUserType) => (
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shadow-inner">
+            {u.firstName[0]}{u.lastName[0]}
+          </div>
+          <div className="flex flex-col">
+            <span className="font-bold text-foreground leading-tight text-xs">{u.firstName} {u.lastName}</span>
+            <span className="text-[10px] text-muted-foreground font-mono">ID: {u.id.slice(-6).toUpperCase()}</span>
+          </div>
+        </div>
+      )
+    },
+    {
+      header: "Contact / Security",
+      accessorKey: "email",
+      cell: (u: SystemUserType) => (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-1.5 text-[11px] text-foreground font-medium">
+            <Mail className="h-3 w-3 text-muted-foreground" /> {u.email}
+          </div>
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Phone className="h-3 w-3" /> {u.mobile}
+          </div>
+        </div>
+      )
+    },
+    {
+      header: "Access Level",
+      accessorKey: "role",
+      cell: (u: SystemUserType) => (
+        <Badge className={
+          u.role === 'Super Admin' ? 'bg-rose-500/10 text-rose-600 border-rose-500/20 shadow-sm' :
+            'bg-primary/10 text-primary border-primary/20'
+        }>
+          {u.role === 'Super Admin' ? <ShieldAlert className="h-3 w-3 mr-1" /> : <ShieldCheck className="h-3 w-3 mr-1" />}
+          {u.role}
+        </Badge>
+      )
+    },
+    {
+      header: "Action",
+      accessorKey: "id",
+      cell: (u: SystemUserType) => (
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleEdit(u.id)}
+            className="h-8 w-8 text-primary hover:bg-primary/10"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleDelete(u.id)}
+            className="h-8 w-8 text-rose-500 hover:bg-rose-50"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      )
     }
-    setCurrentPage(1);
-  };
+  ];
 
-  // Use backend data directly (already filtered, sorted, and paginated)
-  const displayedUsers = systemUsers;
-
-  const SortIcon = ({ column }: { column: string }) => {
-    // Map frontend column names to backend field names for comparison
-    const columnMap: Record<string, string> = {
-      'id': '_id',
-      'name': 'firstName',
-      '_id': '_id',
-      'firstName': 'firstName',
-      'mobile': 'mobile',
-      'email': 'email',
-      'role': 'role',
-    };
-    const backendColumn = columnMap[column] || column;
-    
-    if (sortColumn !== backendColumn) {
-      return (
-        <span className="inline-block ml-1">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M3 4.5L6 1.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M3 7.5L6 10.5L9 7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </span>
-      );
-    }
-    return (
-      <span className="inline-block ml-1">
-        {sortDirection === 'asc' ? (
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M3 4.5L6 1.5L9 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        ) : (
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M3 7.5L6 10.5L9 7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        )}
-      </span>
-    );
-  };
+  const totalPages = Math.ceil(totalUsers / parseInt(rowsPerPage));
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
-      {/* Page Header */}
-      <div className="p-6 pb-0">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-semibold text-neutral-800">System User</h1>
-          <div className="text-sm text-blue-500">
-            <span className="text-blue-500 hover:underline cursor-pointer">Home</span>{' '}
-            <span className="text-neutral-400">/</span> Dashboard
-          </div>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Internal System Users"
+        description="Provision administrative access and manage corporate roles for the platform."
+      />
 
-      {/* Page Content */}
-      <div className="flex-1 px-6 pb-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
-          {/* Left Panel: Add System User */}
-          <div className="bg-white rounded-lg shadow-sm border border-neutral-200 flex flex-col">
-            <div className="bg-teal-600 text-white px-6 py-4 rounded-t-lg">
-              <h2 className="text-lg font-semibold">Add System User</h2>
-            </div>
-            
-            {/* Error Message */}
-            {error && (
-              <div className="p-4 bg-red-50 border-l-4 border-red-500 text-red-700 flex items-center justify-between">
-                <p className="text-sm">{error}</p>
-                <button
-                  onClick={() => setError('')}
-                  className="text-red-700 hover:text-red-900 ml-4 text-lg font-bold"
-                  type="button"
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left Panel - Entry Form */}
+        <Card className="border-border bg-card shadow-sm h-fit sticky top-6">
+          <CardHeader className="bg-teal-600 rounded-t-lg">
+            <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              {editingId ? "Update Permissions" : "Provision New User"}
+            </CardTitle>
+            <CardDescription className="text-teal-50/70 italic">Manage internal staff identities and platform access.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6 pt-6">
+            <div className="space-y-4">
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Access Role <span className="text-rose-500">*</span></Label>
+                <Select
+                  value={formData.role}
+                  onValueChange={(val: 'Admin' | 'Super Admin') => handleInputChange('role', val)}
                 >
-                  Ã—
-                </button>
+                  <SelectTrigger className="h-11 bg-muted/50 border-border">
+                    <SelectValue placeholder="Select staff role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
-            )}
-            
-            {/* Success Message */}
-            {successMessage && (
-              <div className="p-4 bg-green-50 border-l-4 border-green-500 text-green-700 flex items-center justify-between">
-                <p className="text-sm">{successMessage}</p>
-                <button
-                  onClick={() => setSuccessMessage('')}
-                  className="text-green-700 hover:text-green-900 ml-4 text-lg font-bold"
-                  type="button"
-                >
-                  Ã—
-                </button>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">First Name <span className="text-rose-500">*</span></Label>
+                  <Input
+                    placeholder="John"
+                    value={formData.firstName}
+                    onChange={(e) => handleInputChange('firstName', e.target.value)}
+                    className="h-11 bg-muted/50 border-border"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Last Name <span className="text-rose-500">*</span></Label>
+                  <Input
+                    placeholder="Doe"
+                    value={formData.lastName}
+                    onChange={(e) => handleInputChange('lastName', e.target.value)}
+                    className="h-11 bg-muted/50 border-border"
+                  />
+                </div>
               </div>
-            )}
 
-            <div className="p-6 flex-1 flex flex-col">
-              <div className="space-y-4 flex-1">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                      Select role <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="role"
-                      value={formData.role}
-                      onChange={handleInputChange}
-                      disabled={loading}
-                      className="w-full px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
-                    >
-                      <option value="">Select role</option>
-                      {roles.map((role) => (
-                        <option key={role} value={role}>
-                          {role}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                      First Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="firstName"
-                      value={formData.firstName}
-                      onChange={handleInputChange}
-                      placeholder="Enter First Name"
-                      disabled={loading}
-                      className="w-full px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                      Last Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="lastName"
-                      value={formData.lastName}
-                      onChange={handleInputChange}
-                      placeholder="Enter Last Name"
-                      disabled={loading}
-                      className="w-full px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                      Mobile <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      name="mobile"
-                      value={formData.mobile}
-                      onChange={handleInputChange}
-                      placeholder="Enter 10-digit Mobile"
-                      disabled={loading}
-                      maxLength={10}
-                      className="w-full px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                      Email <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Contact Email <span className="text-rose-500">*</span></Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="staff@vcommerce.com"
                       value={formData.email}
-                      onChange={handleInputChange}
-                      placeholder="Enter Email"
-                      disabled={loading}
-                      className="w-full px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                      onChange={(e) => handleInputChange('email', e.target.value)}
+                      className="h-11 bg-muted/50 border-border pl-10"
                     />
                   </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Mobile Line <span className="text-rose-500">*</span></Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="9876543210"
+                      maxLength={10}
+                      value={formData.mobile}
+                      onChange={(e) => handleInputChange('mobile', e.target.value)}
+                      className="h-11 bg-muted/50 border-border pl-10"
+                    />
+                  </div>
+                </div>
+              </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                      Password {editingId === null && <span className="text-red-500">*</span>}
-                    </label>
-                    <input
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                    {editingId ? "Update Passkey" : "Set Passkey"} {editingId === null && <span className="text-rose-500">*</span>}
+                  </Label>
+                  <div className="relative">
+                    <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
                       type="password"
-                      name="password"
+                      placeholder="••••••••"
                       value={formData.password}
-                      onChange={handleInputChange}
-                      placeholder={editingId === null ? "Enter Password" : "Leave blank to keep current"}
-                      disabled={loading}
-                      className="w-full px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                      onChange={(e) => handleInputChange('password', e.target.value)}
+                      className="h-11 bg-muted/50 border-border pl-10"
                     />
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                      Confirm Password {editingId === null && <span className="text-red-500">*</span>}
-                    </label>
-                    <input
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Confirm Secret <span className="text-rose-500">*</span></Label>
+                  <div className="relative">
+                    <UserCheck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
                       type="password"
-                      name="confirmPassword"
+                      placeholder="••••••••"
                       value={formData.confirmPassword}
-                      onChange={handleInputChange}
-                      placeholder={editingId === null ? "Enter Confirm Password" : "Leave blank to keep current"}
-                      disabled={loading}
-                      className="w-full px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                      onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                      className="h-11 bg-muted/50 border-border pl-10"
                     />
                   </div>
                 </div>
               </div>
-
-              <div className="mt-auto pt-4">
-                {editingId !== null ? (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleAddSystemUser}
-                      disabled={loading}
-                      className="flex-1 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-2.5 rounded text-sm font-medium transition-colors"
-                    >
-                      {loading ? 'Updating...' : 'Update System User'}
-                    </button>
-                    <button
-                      onClick={handleCancelEdit}
-                      disabled={loading}
-                      className="flex-1 bg-gray-300 hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed text-gray-800 py-2.5 rounded text-sm font-medium transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={handleAddSystemUser}
-                    disabled={loading}
-                    className="w-full bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-2.5 rounded text-sm font-medium transition-colors"
-                  >
-                    {loading ? 'Adding...' : 'Add System User'}
-                  </button>
-                )}
-              </div>
             </div>
-          </div>
 
-          {/* Right Panel: View System User */}
-          <div className="bg-white rounded-lg shadow-sm border border-neutral-200 flex flex-col">
-            <div className="bg-teal-600 text-white px-6 py-4 rounded-t-lg">
-              <h2 className="text-lg font-semibold">View System User</h2>
+            <div className="flex flex-col gap-2 pt-4">
+              <Button
+                onClick={handleAddSystemUser}
+                disabled={loading}
+                className="w-full font-black uppercase tracking-widest h-12 shadow-lg shadow-primary/20"
+              >
+                {loading ? "Syncing Identity..." : editingId ? "Update Access" : "Grant Access"}
+              </Button>
+              {editingId && (
+                <Button variant="ghost" onClick={resetForm} className="w-full h-10 font-bold">
+                  Cancel Operation
+                </Button>
+              )}
             </div>
-            <div className="p-6 flex-1 flex flex-col">
-              {/* Search and Entries Per Page */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-neutral-700">Show</span>
-                  <select
-                    value={entriesPerPage}
-                    onChange={(e) => {
-                      setEntriesPerPage(Number(e.target.value));
-                      setCurrentPage(1);
-                    }}
-                    disabled={loading}
-                    className="px-2 py-1 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                  >
-                    <option value={10}>10</option>
-                    <option value={25}>25</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
-                  <span className="text-sm text-neutral-700">entries</span>
+          </CardContent>
+        </Card>
+
+        {/* Right Panel - Active Staff */}
+        <Card className="border-border bg-card shadow-sm">
+          <CardHeader className="bg-muted/20 border-b border-border">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black">
+                  {totalUsers}
                 </div>
-                <input
-                  type="text"
+                <div>
+                  <CardTitle className="text-lg font-bold">Administrative Staff</CardTitle>
+                  <CardDescription>Review and manage active system operators.</CardDescription>
+                </div>
+              </div>
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchSystemUsers}>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search operators..."
                   value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  placeholder="Search..."
-                  disabled={loading}
-                  className="px-3 py-1.5 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                  onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                  className="pl-9 h-10 bg-muted/30 border-border"
                 />
               </div>
-
-              {/* Loading State */}
-              {loading && (
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
-                    <p className="mt-2 text-sm text-neutral-600">Loading...</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Table */}
-              {!loading && (
-                <div className="flex-1 overflow-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="bg-neutral-50 border-b border-neutral-200">
-                        <th
-                          className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 cursor-pointer hover:bg-neutral-100"
-                          onClick={() => handleSort('_id')}
-                        >
-                          <div className="flex items-center">
-                            Id
-                            <SortIcon column="_id" />
-                          </div>
-                        </th>
-                        <th
-                          className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 cursor-pointer hover:bg-neutral-100"
-                          onClick={() => handleSort('firstName')}
-                        >
-                          <div className="flex items-center">
-                            Name
-                            <SortIcon column="firstName" />
-                          </div>
-                        </th>
-                        <th
-                          className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 cursor-pointer hover:bg-neutral-100"
-                          onClick={() => handleSort('mobile')}
-                        >
-                          <div className="flex items-center">
-                            Mobile
-                            <SortIcon column="mobile" />
-                          </div>
-                        </th>
-                        <th
-                          className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 cursor-pointer hover:bg-neutral-100"
-                          onClick={() => handleSort('email')}
-                        >
-                          <div className="flex items-center">
-                            Email
-                            <SortIcon column="email" />
-                          </div>
-                        </th>
-                        <th
-                          className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 cursor-pointer hover:bg-neutral-100"
-                          onClick={() => handleSort('role')}
-                        >
-                          <div className="flex items-center">
-                            Role
-                            <SortIcon column="role" />
-                          </div>
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {displayedUsers.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className="px-4 py-8 text-center text-sm text-neutral-500">
-                            No system users found
-                          </td>
-                        </tr>
-                      ) : (
-                        displayedUsers.map((user) => (
-                          <tr key={user.id} className="border-b border-neutral-200 hover:bg-neutral-50">
-                            <td className="px-4 py-3 text-sm text-neutral-700">{user.id}</td>
-                            <td className="px-4 py-3 text-sm text-neutral-700">
-                              {user.firstName} {user.lastName}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-neutral-700">{user.mobile}</td>
-                            <td className="px-4 py-3 text-sm text-neutral-700">{user.email}</td>
-                            <td className="px-4 py-3 text-sm text-neutral-700">{user.role}</td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => handleEdit(user.id)}
-                                  disabled={loading}
-                                  className="p-1.5 bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded transition-colors"
-                                  title="Edit"
-                                >
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13"></path>
-                                    <path d="M18.5 2.5C18.8978 2.10218 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10218 21.5 2.5C21.8978 2.89782 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10218 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z"></path>
-                                  </svg>
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(user.id)}
-                                  disabled={loading}
-                                  className="p-1.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded transition-colors"
-                                  title="Delete"
-                                >
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M3 6H5H21"></path>
-                                    <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z"></path>
-                                  </svg>
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* Pagination */}
-              {!loading && totalPages > 1 && (
-                <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t border-neutral-200">
-                  <div className="text-sm text-neutral-600">
-                    Showing {displayedUsers.length > 0 ? (currentPage - 1) * entriesPerPage + 1 : 0} to {Math.min(currentPage * entriesPerPage, totalUsers)} of {totalUsers} entries
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                      disabled={currentPage === 1 || loading}
-                      className="px-3 py-1.5 border border-neutral-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-50 transition-colors"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M15 18L9 12L15 6"></path>
-                      </svg>
-                    </button>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                      <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        disabled={loading}
-                        className={`px-3 py-1.5 border rounded text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                          currentPage === page
-                            ? 'bg-teal-600 text-white border-teal-600'
-                            : 'border-neutral-300 hover:bg-neutral-50'
-                        }`}
-                      >
-                        {page}
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                      disabled={currentPage === totalPages || loading}
-                      className="px-3 py-1.5 border border-neutral-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-50 transition-colors"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M9 18L15 12L9 6"></path>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              )}
+              <Select value={rowsPerPage} onValueChange={(val) => { setRowsPerPage(val); setCurrentPage(1); }}>
+                <SelectTrigger className="w-24 h-10 bg-muted/30 border-border text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10 Staff</SelectItem>
+                  <SelectItem value="25">25 Staff</SelectItem>
+                  <SelectItem value="50">50 Staff</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Footer */}
-      <div className="text-center text-sm text-neutral-500 py-4 px-6">
-        Copyright Â© 2025. Developed By{' '}
-        <a href="#" className="text-teal-600 hover:text-teal-700">
-          Dhakad Snazzy - 10 Minute App
-        </a>
+            <DataTable
+              columns={columns}
+              data={systemUsers}
+              loading={loading}
+              emptyMessage="No system operators identified in the audit."
+            />
+
+            <div className="flex items-center justify-between mt-8 pt-4 border-t border-border">
+              <p className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] italic">
+                Security Node: {totalUsers} ACTIVE ENTITIES
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1 || loading}
+                  className="h-9 w-9 p-0"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Badge variant="outline" className="h-9 px-3 font-black border-primary/20 text-primary bg-primary/5">
+                  {currentPage} / {totalPages || 1}
+                </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => p + 1)}
+                  disabled={currentPage >= totalPages || loading}
+                  className="h-9 w-9 p-0"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
 }
-
