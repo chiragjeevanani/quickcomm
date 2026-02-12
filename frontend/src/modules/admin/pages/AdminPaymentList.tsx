@@ -160,7 +160,7 @@ export default function AdminPaymentList() {
                     <CardTitle className="text-md font-bold">{method.name}</CardTitle>
                     <CardDescription className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">
                       {method.provider || 'Local'} Provider
-                    </Badge>
+                    </CardDescription>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -261,6 +261,6 @@ export default function AdminPaymentList() {
           <span className="text-[10px] font-black uppercase tracking-widest">PCI-DSS CORE</span>
         </div>
       </div>
-    </div>
+    </div >
   );
 }
